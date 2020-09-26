@@ -1,11 +1,15 @@
 #include "a1_lib.h"
 #include "calculator.h"
+#include "ctype.h"
 
 #define MAX_NB_CLIENTS 5
 #define BUFSIZE 1024
 
 int isCommandValid(char *command);
 int isOperationValid(char *operator);
+char *ltrim(char *s);
+char *rtrim(char *s);
+char *trim(char *s);
 
 int main()
 {
@@ -65,7 +69,7 @@ int main()
 
     if (isCommandValid(msg) != 0)
     {
-      strncpy(response, "Invalid Command", BUFSIZE);
+      strncpy(response, "NOT_FOUND", BUFSIZE);
     }
     // parse command
     else
@@ -73,28 +77,30 @@ int main()
       char msg_cpy[BUFSIZE];
       strncpy(msg_cpy, msg, BUFSIZE);
       char *operation = NULL;
-      char *op1 = NULL;
-      char *op2 = NULL;
+      char *op1 = "0";
+      char *op2 = "0";
 
-      char *token = strtok(msg_cpy, " ");
-      int index = 0;
-      // parse the command into tokens
-      while (token != NULL)
+      char *param = strtok(msg_cpy, " ");
+      // number of parameters
+      int n = 0;
+      // parse the command into parameters
+
+      while (param != NULL)
       {
-        if (index == 0)
+        n++;
+        if (n == 1)
         {
-          operation = token;
+          operation = trim(param);
         }
-        else if (index == 1)
+        else if (n == 2)
         {
-          op1 = token;
+          op1 = trim(param);
         }
-        else if (index == 2)
+        else if (n == 3)
         {
-          op2 = token;
+          op2 = trim(param);
         }
-        index++;
-        token = strtok(NULL, " ");
+        param = strtok(NULL, " ");
       }
 
       if (strcmp(operation, add_cmd) == 0)
@@ -112,7 +118,7 @@ int main()
         float fdiv = divideFloats(atof(op1), atof(op2));
         if (fdiv == 0)
         {
-           sprintf(response, "division by 0, undefined result");         
+          sprintf(response, "Error: Division by 0");
         }
         else
         {
@@ -166,34 +172,36 @@ int isOperationValid(char *operator)
 int isCommandValid(char command[])
 {
   char *operation = NULL;
-  char *op1 = NULL;
-  char *op2 = NULL;
+  char *op1 = "0";
+  char *op2 = "0";
   char command_cpy[BUFSIZE];
   strncpy(command_cpy, command, BUFSIZE);
 
-  char *token = strtok(command_cpy, " ");
-  int index = 0;
+  char *param = strtok(command_cpy, " ");
+  int n = 0;
 
   // parse the command into tokens
-  while (token != NULL)
+  while (param != NULL)
   {
-    if (index == 0)
+    n++;
+    if (n == 1)
     {
-      operation = token;
+      operation = trim(param);
     }
 
-    else if (index == 1)
+    else if (n == 2)
     {
-      op1 = token;
+      op1 = trim(param);
     }
-    else if (index == 2)
+    else if (n == 3)
     {
-      op2 = token;
+      op2 = trim(param);
     }
-    index++;
-    token = strtok(NULL, " ");
+
+    param = strtok(NULL, " ");
   }
-  if (index >= 4)
+
+  if (n >= 4)
   {
     printf("Invalid Command: too many operators\n");
     return -1;
@@ -210,7 +218,7 @@ int isCommandValid(char command[])
   if (strcmp(operation, "add") == 0 || strcmp(operation, "multiply") == 0)
   {
     // check if correct number of operators
-    if (index > 3)
+    if (n > 3)
     {
       printf("Invalid command: wrong number of operators for this command\n");
       return -1;
@@ -218,7 +226,6 @@ int isCommandValid(char command[])
     // check that op 1 and op 2 are integers
     if ((atoi(op1) == 0 && atoi(op1) != 0) || (atoi(op2) == 0 && atoi(op2) != 0))
     {
-      printf("%s\n", op2);
       printf("Invalid command: operators must be ints\n");
 
       return -1;
@@ -229,7 +236,7 @@ int isCommandValid(char command[])
   else if (strcmp(operation, "divide") == 0)
   {
     // check if correct number of operators
-    if (index > 3)
+    if (n > 3)
     {
       printf("Invalid command: wrong number of operators for this command\n");
       return -1;
@@ -246,7 +253,7 @@ int isCommandValid(char command[])
   else if (strcmp(operation, "sleep") == 0 || strcmp(operation, "factorial") == 0)
   {
     // check if correct number of operators
-    if (index > 2)
+    if (n > 2)
     {
       printf("Invalid command: wrong number of operators for this command\n");
       return -1;
@@ -259,4 +266,49 @@ int isCommandValid(char command[])
     }
   }
   return 0;
+}
+
+/**
+ * left trim of string s
+ * @params:
+ *  s:   pointer to string we want to left trim
+ * 
+ * @return:   pointer to beginning of left-trimmed string
+ *            
+*/
+char *ltrim(char *s)
+{
+  while (isspace(*s))
+    s++;
+  return s;
+}
+
+/**
+ * right trim of string s
+ * @params:
+ *  s:   pointer to the string we want to right trim
+ * 
+ * @return:   pointer to beginning of right-trimmed string
+ *            
+*/
+char *rtrim(char *s)
+{
+  char *back = s + strlen(s);
+  while (isspace(*--back))
+    ;
+  *(back + 1) = '\0';
+  return s;
+}
+
+/**
+ * full trim of string s
+ * @params:
+ *  s:   pointer to the string we want to trim
+ * 
+ * @return:   pointer to beginning of trimmed string
+ *            
+*/
+char *trim(char *s)
+{
+  return rtrim(ltrim(s));
 }
