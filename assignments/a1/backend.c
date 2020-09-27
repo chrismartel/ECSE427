@@ -1,9 +1,12 @@
 #include "a1_lib.h"
 #include "calculator.h"
 #include "mystringlib.h"
+#include <sys/types.h>
+#include <sys/wait.h>
 
-#define MAX_NB_CLIENTS 5
+#define MAX_NB_CLIENTS 2
 #define BUFSIZE 1024
+#define SLEEPTIME 2
 
 int isCommandValid(char *command);
 int isOperationValid(char *operator);
@@ -23,160 +26,203 @@ int main()
   const char *exit_cmd = "exit";
   const char *sd_cmd = "shutdown";
 
-  // number of frontend processes running
+  // number of client processes running
   int running = 0;
 
   // the file descriptor associated with the server socket
   int sockfd;
 
+  pid_t pids[MAX_NB_CLIENTS];
+
   // set up the server socket
-  if (create_server("127.0.0.7", 10000, &sockfd) < 0)
+  if (create_server("127.0.0.15", 10000, &sockfd) < 0)
   {
     fprintf(stderr, "error in creating server\n");
     return -1;
   }
-  printf("server created successfully\n\n");
 
-  while (running < 5)
+  while (1)
   {
-    // server response
-    char response[BUFSIZE];
-
-    // the file descriptor of the client connection
-    int frontendfd;
-
-    // The message queue
-    char msg[BUFSIZE];
-
-    // accept a client connection on a server socket
-    printf("waiting for client connection...\n\n");
-    if (accept_connection(sockfd, &frontendfd) < 0)
-    {
-      fprintf(stderr, "error in accepting connection from client\n");
-      return -1;
-    }
-    printf("accepted client connection successfully!\n\n");
 
     pid_t pid;
-
     // fork a child process
-    pid = fork();
+    pids[running] = fork();
 
-    // error
-    if (pid < 0)
+    /* ERROR IN FORKING */
+    if (pids[running] < 0)
     {
       fprintf(stderr, "Fork Failed");
       return 1;
     }
-    // child process
-    else if (pid == 0)
+
+    /* EXECUTION OF CHILD PROCESS */
+    else if (pids[running] == 0)
     {
-      /* EXECUTION OF CHILD PROCESS */
-
-      while (strcmp(msg, "exit\n"))
+      while (1)
       {
-        memset(msg, 0, sizeof(msg));
-        memset(response, 0, sizeof(response));
 
-        ssize_t byte_count = recv_message(frontendfd, msg, BUFSIZE);
-        if (byte_count <= 0)
+        if (running < MAX_NB_CLIENTS)
         {
-          printf("error in receiving message...\n");
-          break;
-        }
+          // The message buffer
+          char msg[BUFSIZE];
 
-        // check validity of command
+          // server response buffer
+          char response[BUFSIZE];
 
-        if (isCommandValid(msg) != 0)
-        {
-          strncpy(response, "NOT_FOUND", BUFSIZE);
+          // the file descriptor of the client connection
+          int frontendfd;
+
+          // accept a client connection on a server socket
+          printf("waiting for client connection...\n\n");
+          if (accept_connection(sockfd, &frontendfd) < 0)
+          {
+            fprintf(stderr, "error in accepting connection from client\n");
+            return -1;
+          }
+          printf("accepted client connection\n\n");
+          pids[running] = fork();
+
+          if (pids[running] < 0)
+          {
+            fprintf(stderr, "Fork Failed");
+            exit(-1);
+          }
+          else if (pids[running] == 0)
+          {
+            while (1)
+            {
+              memset(msg, 0, sizeof(msg));
+              memset(response, 0, sizeof(response));
+
+              ssize_t byte_count = recv_message(frontendfd, msg, BUFSIZE);
+              if (byte_count <= 0)
+              {
+                printf("error in receiving message...\n");
+                break;
+              }
+
+              // check validity of command
+
+              if (isCommandValid(msg) != 0)
+              {
+                strncpy(response, "NOT_FOUND", BUFSIZE);
+              }
+              // parse command
+              else
+              {
+                char msg_cpy[BUFSIZE];
+                strncpy(msg_cpy, msg, BUFSIZE);
+                char *operation = NULL;
+                char *op1 = "0";
+                char *op2 = "0";
+
+                char *param = strtok(msg_cpy, " ");
+                // number of parameters
+                int n = 0;
+                // parse the command into parameters
+
+                while (param != NULL)
+                {
+                  n++;
+                  if (n == 1)
+                  {
+                    operation = trim(param);
+                  }
+                  else if (n == 2)
+                  {
+                    op1 = trim(param);
+                  }
+                  else if (n == 3)
+                  {
+                    op2 = trim(param);
+                  }
+                  param = strtok(NULL, " ");
+                }
+
+                if (strcmp(operation, add_cmd) == 0)
+                {
+                  int isum = addInts(atoi(op1), atoi(op2));
+                  sprintf(response, "%d", isum);
+                }
+                else if (strcmp(operation, mul_cmd) == 0)
+                {
+                  int imul = multiplyInts(atoi(op1), atoi(op2));
+                  sprintf(response, "%d", imul);
+                }
+                else if (strcmp(operation, div_cmd) == 0)
+                {
+                  float fdiv = divideFloats(atof(op1), atof(op2));
+                  if (fdiv == 0)
+                  {
+                    sprintf(response, "Error: Division by 0");
+                  }
+                  else
+                  {
+                    sprintf(response, "%f", fdiv);
+                  }
+                }
+                else if (strcmp(operation, sleep_cmd) == 0)
+                {
+                  sleepFor(atoi(op1));
+                  sprintf(response, "Slept for %d seconds", atoi(op1));
+                }
+                else if (strcmp(operation, fact_cmd) == 0)
+                {
+                  int ifac = factorial(atoi(op1));
+                  sprintf(response, "%d", ifac);
+                }
+                else if (strcmp(operation, exit_cmd) == 0)
+                {
+                  sprintf(response, "exit");
+                  send_message(frontendfd, response, BUFSIZE);
+                  // child exits normally
+                  exit(0);
+                }
+                else if (strcmp(operation, sd_cmd) == 0)
+                {
+                  sprintf(response, "shutdown");
+                  send_message(frontendfd, response, BUFSIZE);
+                  exit(-1);
+                }
+              }
+
+              send_message(frontendfd, response, BUFSIZE);
+            }
+          }
         }
-        // parse command
         else
         {
-          char msg_cpy[BUFSIZE];
-          strncpy(msg_cpy, msg, BUFSIZE);
-          char *operation = NULL;
-          char *op1 = "0";
-          char *op2 = "0";
-
-          char *param = strtok(msg_cpy, " ");
-          // number of parameters
-          int n = 0;
-          // parse the command into parameters
-
-          while (param != NULL)
+          /*
+          printf("Server is currently full please wait...\n");
+          while (running >= MAX_NB_CLIENTS)
           {
-            n++;
-            if (n == 1)
-            {
-              operation = trim(param);
-            }
-            else if (n == 2)
-            {
-              op1 = trim(param);
-            }
-            else if (n == 3)
-            {
-              op2 = trim(param);
-            }
-            param = strtok(NULL, " ");
-          }
-
-          if (strcmp(operation, add_cmd) == 0)
-          {
-            int isum = addInts(atoi(op1), atoi(op2));
-            sprintf(response, "%d", isum);
-          }
-          else if (strcmp(operation, mul_cmd) == 0)
-          {
-            int imul = multiplyInts(atoi(op1), atoi(op2));
-            sprintf(response, "%d", imul);
-          }
-          else if (strcmp(operation, div_cmd) == 0)
-          {
-            float fdiv = divideFloats(atof(op1), atof(op2));
-            if (fdiv == 0)
-            {
-              sprintf(response, "Error: Division by 0");
-            }
-            else
-            {
-              sprintf(response, "%f", fdiv);
-            }
-          }
-          else if (strcmp(operation, sleep_cmd) == 0)
-          {
-            sleepFor(atoi(op1));
-            sprintf(response, "Slept for %d seconds", atoi(op1));
-          }
-          else if (strcmp(operation, fact_cmd) == 0)
-          {
-            int ifac = factorial(atoi(op1));
-            sprintf(response, "%d", ifac);
-          }
-          else if (strcmp(operation, exit_cmd) == 0)
-          {
-            sprintf(response, "exit");
-            send_message(frontendfd, response, BUFSIZE);
-            printf("Child exits... ");
-            // child exits
-            exit(0);
-          }
-          else if (strcmp(operation, sd_cmd) == 0)
-          {
-            printf("Shutting down....");
-            return 0;
-          }
+            sleep(SLEEPTIME);
+          }*/
         }
-
-        send_message(frontendfd, response, BUFSIZE);
       }
     }
+
     /* EXECUTION OF PARENT PROCESS */
     else
     {
-      running++;
+      // consistently check the states of the processes
+      while (1)
+      {
+        sleep(SLEEPTIME);
+        int status;
+        pid_t pid_check;
+        for (int i = 0; i < MAX_NB_CLIENTS; i++)
+        {
+          // check status of pid
+          pid_check = waitpid(pids[i], &status, WNOHANG);
+          printf("pids[%d] is: %i", i, pids[i]);
+          // shutdown was called
+          if (WEXITSTATUS(status) == -1)
+          {
+            kill(getpid(), SIGTERM);
+          }
+        }
+      }
     }
   }
 }
@@ -307,5 +353,3 @@ int isCommandValid(char command[])
   }
   return 0;
 }
-
-
