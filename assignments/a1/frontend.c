@@ -12,12 +12,13 @@ int main()
     // stores message from server
     char backend_msg[BUFSIZE];
 
-    if (connect_to_server("127.0.0.15", 10000, &sockfd) < 0)
+    if (connect_to_server("127.0.0.30", 10000, &sockfd) < 0)
     {
         fprintf(stderr, "Error connecting client to server\n");
         return -1;
     }
-    printf("Succesfully connected client to server!\n");
+
+
     while (1)
     {
         memset(user_input, 0, sizeof(user_input));
