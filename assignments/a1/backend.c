@@ -20,124 +20,162 @@ int main()
   const char *sleep_cmd = "sleep";
   const char *fact_cmd = "factorial";
   const char *div_cmd = "divide";
+  const char *exit_cmd = "exit";
+  const char *sd_cmd = "shutdown";
 
   // number of frontend processes running
   int running = 0;
 
-  // server response
-  char response[BUFSIZE];
-
   // the file descriptor associated with the server socket
   int sockfd;
 
-  // the file descriptor of the client connection
-  int clientfd;
-
-  // The message queue
-  char msg[BUFSIZE];
-
   // set up the server socket
-  if (create_server("0.0.0.0", 10000, &sockfd) < 0)
+  if (create_server("127.0.0.7", 10000, &sockfd) < 0)
   {
     fprintf(stderr, "error in creating server\n");
     return -1;
   }
   printf("server created successfully\n\n");
 
-  // accept a client connection on a server socket
-  printf("waiting for client connection...\n\n");
-  if (accept_connection(sockfd, &clientfd) < 0)
+  while (running < 5)
   {
-    fprintf(stderr, "error in accepting connection from client\n");
-    return -1;
-  }
-  printf("accepted client connection successfully!\n\n");
+    // server response
+    char response[BUFSIZE];
 
-  while (strcmp(msg, "exit\n"))
-  {
-    memset(msg, 0, sizeof(msg));
-    memset(response, 0, sizeof(response));
+    // the file descriptor of the client connection
+    int frontendfd;
 
-    ssize_t byte_count = recv_message(clientfd, msg, BUFSIZE);
-    if (byte_count <= 0)
+    // The message queue
+    char msg[BUFSIZE];
+
+    // accept a client connection on a server socket
+    printf("waiting for client connection...\n\n");
+    if (accept_connection(sockfd, &frontendfd) < 0)
     {
-      printf("error in receiving message...\n");
-      break;
+      fprintf(stderr, "error in accepting connection from client\n");
+      return -1;
     }
+    printf("accepted client connection successfully!\n\n");
 
-    // check validity of command
+    pid_t pid;
 
-    if (isCommandValid(msg) != 0)
+    // fork a child process
+    pid = fork();
+
+    // error
+    if (pid < 0)
     {
-      strncpy(response, "NOT_FOUND", BUFSIZE);
+      fprintf(stderr, "Fork Failed");
+      return 1;
     }
-    // parse command
-    else
+    // child process
+    else if (pid == 0)
     {
-      char msg_cpy[BUFSIZE];
-      strncpy(msg_cpy, msg, BUFSIZE);
-      char *operation = NULL;
-      char *op1 = "0";
-      char *op2 = "0";
+      /* EXECUTION OF CHILD PROCESS */
 
-      char *param = strtok(msg_cpy, " ");
-      // number of parameters
-      int n = 0;
-      // parse the command into parameters
+      while (strcmp(msg, "exit\n"))
+      {
+        memset(msg, 0, sizeof(msg));
+        memset(response, 0, sizeof(response));
 
-      while (param != NULL)
-      {
-        n++;
-        if (n == 1)
+        ssize_t byte_count = recv_message(frontendfd, msg, BUFSIZE);
+        if (byte_count <= 0)
         {
-          operation = trim(param);
+          printf("error in receiving message...\n");
+          break;
         }
-        else if (n == 2)
-        {
-          op1 = trim(param);
-        }
-        else if (n == 3)
-        {
-          op2 = trim(param);
-        }
-        param = strtok(NULL, " ");
-      }
 
-      if (strcmp(operation, add_cmd) == 0)
-      {
-        int isum = addInts(atoi(op1), atoi(op2));
-        sprintf(response, "%d", isum);
-      }
-      else if (strcmp(operation, mul_cmd) == 0)
-      {
-        int imul = multiplyInts(atoi(op1), atoi(op2));
-        sprintf(response, "%d", imul);
-      }
-      else if (strcmp(operation, div_cmd) == 0)
-      {
-        float fdiv = divideFloats(atof(op1), atof(op2));
-        if (fdiv == 0)
+        // check validity of command
+
+        if (isCommandValid(msg) != 0)
         {
-          sprintf(response, "Error: Division by 0");
+          strncpy(response, "NOT_FOUND", BUFSIZE);
         }
+        // parse command
         else
         {
-          sprintf(response, "%f", fdiv);
+          char msg_cpy[BUFSIZE];
+          strncpy(msg_cpy, msg, BUFSIZE);
+          char *operation = NULL;
+          char *op1 = "0";
+          char *op2 = "0";
+
+          char *param = strtok(msg_cpy, " ");
+          // number of parameters
+          int n = 0;
+          // parse the command into parameters
+
+          while (param != NULL)
+          {
+            n++;
+            if (n == 1)
+            {
+              operation = trim(param);
+            }
+            else if (n == 2)
+            {
+              op1 = trim(param);
+            }
+            else if (n == 3)
+            {
+              op2 = trim(param);
+            }
+            param = strtok(NULL, " ");
+          }
+
+          if (strcmp(operation, add_cmd) == 0)
+          {
+            int isum = addInts(atoi(op1), atoi(op2));
+            sprintf(response, "%d", isum);
+          }
+          else if (strcmp(operation, mul_cmd) == 0)
+          {
+            int imul = multiplyInts(atoi(op1), atoi(op2));
+            sprintf(response, "%d", imul);
+          }
+          else if (strcmp(operation, div_cmd) == 0)
+          {
+            float fdiv = divideFloats(atof(op1), atof(op2));
+            if (fdiv == 0)
+            {
+              sprintf(response, "Error: Division by 0");
+            }
+            else
+            {
+              sprintf(response, "%f", fdiv);
+            }
+          }
+          else if (strcmp(operation, sleep_cmd) == 0)
+          {
+            sleepFor(atoi(op1));
+            sprintf(response, "Slept for %d seconds", atoi(op1));
+          }
+          else if (strcmp(operation, fact_cmd) == 0)
+          {
+            int ifac = factorial(atoi(op1));
+            sprintf(response, "%d", ifac);
+          }
+          else if (strcmp(operation, exit_cmd) == 0)
+          {
+            sprintf(response, "exit");
+            send_message(frontendfd, response, BUFSIZE);
+            // child exits
+            exit(0);
+          }
+          else if (strcmp(operation, sd_cmd) == 0)
+          {
+            return 0;
+          }
         }
-      }
-      else if (strcmp(operation, sleep_cmd) == 0)
-      {
-        sleepFor(atoi(op1));
-        sprintf(response, "Slept for %d seconds", atoi(op1));
-      }
-      else if (strcmp(operation, fact_cmd) == 0)
-      {
-        int ifac = factorial(atoi(op1));
-        sprintf(response, "%d", ifac);
+
+        send_message(frontendfd, response, BUFSIZE);
       }
     }
-
-    send_message(clientfd, response, BUFSIZE);
+    /* EXECUTION OF PARENT PROCESS */
+    else
+    {
+      running++;
+    }
   }
 }
 
@@ -151,7 +189,7 @@ int main()
 */
 int isOperationValid(char *operator)
 {
-  if ((strcmp(operator, "add") == 0) || (strcmp(operator, "multiply") == 0) || (strcmp(operator, "divide") == 0) || (strcmp(operator, "sleep") == 0) || (strcmp(operator, "factorial") == 0))
+  if ((strcmp(operator, "add") == 0) || (strcmp(operator, "shutdown") == 0) || (strcmp(operator, "exit") == 0) || (strcmp(operator, "multiply") == 0) || (strcmp(operator, "divide") == 0) || (strcmp(operator, "sleep") == 0) || (strcmp(operator, "factorial") == 0))
   {
     return 0;
   }
