@@ -1,4 +1,5 @@
 #include "a1_lib.h"
+#include "mystringlib.h"
 
 #define BUFSIZE 1024
 

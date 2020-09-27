@@ -1,6 +1,6 @@
 #include "a1_lib.h"
 #include "calculator.h"
-#include "ctype.h"
+#include "mystringlib.h"
 
 #define MAX_NB_CLIENTS 5
 #define BUFSIZE 1024
@@ -159,11 +159,13 @@ int main()
           {
             sprintf(response, "exit");
             send_message(frontendfd, response, BUFSIZE);
+            printf("Child exits... ");
             // child exits
             exit(0);
           }
           else if (strcmp(operation, sd_cmd) == 0)
           {
+            printf("Shutting down....");
             return 0;
           }
         }
@@ -306,47 +308,4 @@ int isCommandValid(char command[])
   return 0;
 }
 
-/**
- * left trim of string s
- * @params:
- *  s:   pointer to string we want to left trim
- * 
- * @return:   pointer to beginning of left-trimmed string
- *            
-*/
-char *ltrim(char *s)
-{
-  while (isspace(*s))
-    s++;
-  return s;
-}
 
-/**
- * right trim of string s
- * @params:
- *  s:   pointer to the string we want to right trim
- * 
- * @return:   pointer to beginning of right-trimmed string
- *            
-*/
-char *rtrim(char *s)
-{
-  char *back = s + strlen(s);
-  while (isspace(*--back))
-    ;
-  *(back + 1) = '\0';
-  return s;
-}
-
-/**
- * full trim of string s
- * @params:
- *  s:   pointer to the string we want to trim
- * 
- * @return:   pointer to beginning of trimmed string
- *            
-*/
-char *trim(char *s)
-{
-  return rtrim(ltrim(s));
-}
