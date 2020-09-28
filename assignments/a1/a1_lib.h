@@ -20,7 +20,8 @@
 #include "mystringlib.h"
 #include "calculator.h"
 #include <sys/mman.h>
-#define BACKLOG_SIZE    10
+
+#define BACKLOG_SIZE 10
 #define BUFSIZE 1024
 #define MAX_NB_CLIENTS 3
 #define PIDSIZE 8
@@ -90,5 +91,4 @@ ssize_t send_message(int sockfd, const char *buf, size_t len);
  */
 ssize_t recv_message(int sockfd, char *buf, size_t len);
 
-#endif  // A1_LIB_
-
+#endif // A1_LIB_

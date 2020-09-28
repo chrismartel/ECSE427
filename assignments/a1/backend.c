@@ -1,13 +1,13 @@
 #include "a1_lib.h"
 
 int isCommandValid(char *command);
-int isOperationValid(char *operator);
+int isOperatorValid(char *operator);
 void *create_shared_memory(size_t size);
 
 int main()
 {
 
-  // valid commands
+  /* list of valid commands */
   const char *add_cmd = "add";
   const char *mul_cmd = "multiply";
   const char *sleep_cmd = "sleep";
@@ -16,19 +16,26 @@ int main()
   const char *exit_cmd = "exit";
   const char *sd_cmd = "shutdown";
 
-  // number of client processes running
+  /* next process id to fork*/
   pid_t nextpid;
 
-  // the file descriptor associated with the server socket
+  /* file descriptor of the server socket */
   int sockfd;
 
-  //pid_t children_pids[MAX_NB_CLIENTS];
-  pid_t *children_pids_shm = create_shared_memory(PIDSIZE * MAX_NB_CLIENTS);
-  int *running_shm = create_shared_memory(INTSIZE);
-  int start_index = 0;
-  memcpy(running_shm, &start_index, INTSIZE);
+  // SETUP SHARED MEMORY SEGMENTS //
 
-  // set up the server socket
+  /* children process ids*/
+  pid_t *children_pids_shm = create_shared_memory(PIDSIZE * MAX_NB_CLIENTS);
+
+  /* snumber of children processes currently running */
+  int *nclients_shm = create_shared_memory(INTSIZE);
+
+  /* initialize number of clients currently running */
+  int start_index = 0;
+  memcpy(nclients_shm, &start_index, INTSIZE);
+
+  // SETUP SERVER SOCKET //
+
   if (create_server("127.0.0.5", 10000, &sockfd) < 0)
   {
     fprintf(stderr, "error in creating server\n");
@@ -37,65 +44,57 @@ int main()
 
   while (1)
   {
+    // SETUP CLIENT CONNECTION //
 
-    if (*running_shm >= MAX_NB_CLIENTS)
+    /* client message buffer */
+    char msg[BUFSIZE];
+
+    /* server response buffer */
+    char response[BUFSIZE];
+
+    /* file descriptor of client connection */
+    int frontendfd;
+
+    int socket;
+    printf("waiting for client connection...\n\n");
+    if (socket = accept_connection(sockfd, &frontendfd) < 0)
     {
-      // The message buffer
-      char msg[BUFSIZE];
+      fprintf(stderr, "error in accepting connection from client\n");
+      exit(-1);
+    }
 
-      // server response buffer
-      char response[BUFSIZE];
+    // CHECK NUMBER OF CLIENTS RUNNING ON SERVER* //
 
-      // the file descriptor of the client connection
-      int frontendfd;
-
-      // accept a client connection on a server socket
-      int socket;
-      if (socket = accept_connection(sockfd, &frontendfd) < 0)
-      {
-        fprintf(stderr, "error in accepting connection from client\n");
-        exit(-1);
-      }
+    /*server unavailable*/
+    if (*nclients_shm >= MAX_NB_CLIENTS)
+    {
       sprintf(response, "busy");
       send_message(frontendfd, response, BUFSIZE);
     }
+
+    /* server available*/
     else
     {
-      // The message buffer
-      char msg[BUFSIZE];
+      /* increment number of clients running on server*/
+      *nclients_shm = *nclients_shm + 1;
+      //printf("accepted client connection\nCurrently serving %d clients\n", *nclients_shm);
 
-      // server response buffer
-      char response[BUFSIZE];
-
-      // the file descriptor of the client connection
-      int frontendfd;
-
-      // accept a client connection on a server socket
-      printf("waiting for client connection...\n\n");
-      int socket;
-      if (socket = accept_connection(sockfd, &frontendfd) < 0)
-      {
-        fprintf(stderr, "error in accepting connection from client\n");
-        exit(-1);
-      }
-      printf("accepted client connection\n\n");
-
-      *running_shm = *running_shm + 1;
-
-      // fork a child process
+      /* fork a child process */
       nextpid = fork();
 
-      /* ERROR IN FORKING */
       if (nextpid < 0)
       {
         fprintf(stderr, "Fork Failed");
         exit(-1);
       }
 
-      /* EXECUTION OF CHILD PROCESS */
+      // EXECUTION OF CHILD PROCESS //
       else if (nextpid == 0)
       {
-        memcpy((children_pids_shm + (*(running_shm)*PIDSIZE)), &nextpid, PIDSIZE);
+        /* store child id in shared memory segment*/
+        memcpy((children_pids_shm + (*(nclients_shm)*PIDSIZE)), &nextpid, PIDSIZE);
+
+        // RECEIVE FRONTEND COMMANDS //
         while (1)
         {
           memset(msg, 0, sizeof(msg));
@@ -104,36 +103,42 @@ int main()
           ssize_t byte_count = recv_message(frontendfd, msg, BUFSIZE);
           if (byte_count <= 0)
           {
-            //printf("error in receiving message...\n");
+            printf("error in receiving message...\n");
             break;
           }
 
-          // check validity of command
+          // CHECK VALIDITY OF COMMAND //
 
           if (isCommandValid(msg) != 0)
           {
             strncpy(response, "NOT_FOUND", BUFSIZE);
           }
-          // parse command
+
           else
           {
+            // PARSE COMMAND //
+
             char msg_cpy[BUFSIZE];
             strncpy(msg_cpy, msg, BUFSIZE);
-            char *operation = NULL;
+
+            /* operator */
+            char *operator= NULL;
+
+            /* first operand */
             char *op1 = "0";
+
+            /* second operand*/
             char *op2 = "0";
 
+            /* split command into tokens*/
             char *param = strtok(msg_cpy, " ");
-            // number of parameters
             int n = 0;
-            // parse the command into parameters
-
             while (param != NULL)
             {
               n++;
               if (n == 1)
               {
-                operation = trim(param);
+                operator= trim(param);
               }
               else if (n == 2)
               {
@@ -145,18 +150,20 @@ int main()
               }
               param = strtok(NULL, " ");
             }
-
-            if (strcmp(operation, add_cmd) == 0)
+            // ADD COMMAND //
+            if (strcmp(operator, add_cmd) == 0)
             {
               int isum = addInts(atoi(op1), atoi(op2));
               sprintf(response, "%d", isum);
             }
-            else if (strcmp(operation, mul_cmd) == 0)
+            // MULTIPLICATION COMMAND //
+            else if (strcmp(operator, mul_cmd) == 0)
             {
               int imul = multiplyInts(atoi(op1), atoi(op2));
               sprintf(response, "%d", imul);
             }
-            else if (strcmp(operation, div_cmd) == 0)
+            // DIVISION COMMAND //
+            else if (strcmp(operator, div_cmd) == 0)
             {
               float fdiv = divideFloats(atof(op1), atof(op2));
               if (fdiv == 0)
@@ -168,34 +175,38 @@ int main()
                 sprintf(response, "%f", fdiv);
               }
             }
-            else if (strcmp(operation, sleep_cmd) == 0)
+            // SLEEP COMMAND //
+            else if (strcmp(operator, sleep_cmd) == 0)
             {
               sleepFor(atoi(op1));
               sprintf(response, "Slept for %d seconds", atoi(op1));
             }
-            else if (strcmp(operation, fact_cmd) == 0)
+            // FACTORIAL COMMAND
+            else if (strcmp(operator, fact_cmd) == 0)
             {
               int ifac = factorial(atoi(op1));
               sprintf(response, "%d", ifac);
             }
-            else if (strcmp(operation, exit_cmd) == 0)
+            // EXIT COMMAND
+            else if (strcmp(operator, exit_cmd) == 0)
             {
               sprintf(response, "exit");
               send_message(frontendfd, response, BUFSIZE);
-              // child exits normally
               close(socket);
               close(sockfd);
-              *running_shm = *running_shm - 1;
+              /* decrement number of running clients */
+              *nclients_shm = *nclients_shm - 1;
               exit(0);
             }
-            else if (strcmp(operation, sd_cmd) == 0)
+            // SHUTDOWN COMMAND
+            else if (strcmp(operator, sd_cmd) == 0)
             {
               sprintf(response, "shutdown");
               send_message(frontendfd, response, BUFSIZE);
               close(socket);
               close(sockfd);
-              // kill all children
-              for (int i = 0; i < *running_shm; i++)
+              /* kill all children processes*/
+              for (int i = 0; i < *nclients_shm; i++)
               {
                 int status;
                 pid_t cid = *(children_pids_shm + i * PIDSIZE);
@@ -204,19 +215,19 @@ int main()
                   kill(cid, SIGTERM);
                 }
               }
-              kill(getpid(), SIGTERM);
+              /* kill parent process*/
               kill(getppid(), SIGTERM);
+              /* kill current process*/
+              kill(getpid(), SIGTERM);
             }
           }
 
           send_message(frontendfd, response, BUFSIZE);
         }
       }
-      /* EXECUTION OF PARENT PROCESS */
-
+      // EXECUTION OF PARENT PROCESS //
       close(socket);
-      // increment number of running processes
-      printf("Incremented running to: %d\n", *running_shm);
+      /* start new while loop --> listen for new connection */
     }
   }
 }
@@ -229,7 +240,7 @@ int main()
  * @return:     0 if the string is a valid operator
  *              -1 if the string is not a valid operator
 */
-int isOperationValid(char *operator)
+int isOperatorValid(char *operator)
 {
   if ((strcmp(operator, "add") == 0) || (strcmp(operator, "shutdown") == 0) || (strcmp(operator, "exit") == 0) || (strcmp(operator, "multiply") == 0) || (strcmp(operator, "divide") == 0) || (strcmp(operator, "sleep") == 0) || (strcmp(operator, "factorial") == 0))
   {
@@ -251,7 +262,7 @@ int isOperationValid(char *operator)
 */
 int isCommandValid(char command[])
 {
-  char *operation = NULL;
+  char *operator= NULL;
   char *op1 = "0";
   char *op2 = "0";
   char command_cpy[BUFSIZE];
@@ -266,7 +277,7 @@ int isCommandValid(char command[])
     n++;
     if (n == 1)
     {
-      operation = trim(param);
+      operator= trim(param);
     }
 
     else if (n == 2)
@@ -287,15 +298,15 @@ int isCommandValid(char command[])
     return -1;
   }
 
-  // check if operation is valid
-  if (isOperationValid(operation) != 0)
+  // check if operator is valid
+  if (isOperatorValid(operator) != 0)
   {
-    printf("Invalid command: invalid operation\n");
+    printf("Invalid command: invalid operator\n");
     return -1;
   }
 
   // add/multiply validity
-  if (strcmp(operation, "add") == 0 || strcmp(operation, "multiply") == 0)
+  if (strcmp(operator, "add") == 0 || strcmp(operator, "multiply") == 0)
   {
     // check if correct number of operators
     if (n > 3)
@@ -313,7 +324,7 @@ int isCommandValid(char command[])
   }
 
   // divide validity
-  else if (strcmp(operation, "divide") == 0)
+  else if (strcmp(operator, "divide") == 0)
   {
     // check if correct number of operators
     if (n > 3)
@@ -330,7 +341,7 @@ int isCommandValid(char command[])
   }
 
   // sleep/factorial validity
-  else if (strcmp(operation, "sleep") == 0 || strcmp(operation, "factorial") == 0)
+  else if (strcmp(operator, "sleep") == 0 || strcmp(operator, "factorial") == 0)
   {
     // check if correct number of operators
     if (n > 2)
@@ -348,9 +359,20 @@ int isCommandValid(char command[])
   return 0;
 }
 
+/**
+ * Method creating a shared memory segment
+ * @params:
+ *  size:   size of desired shared memory segment
+ * 
+ * @return:     pointer to shared memory segment
+*/
 void *create_shared_memory(size_t size)
 {
   int protection = PROT_READ | PROT_WRITE;
   int visibility = MAP_SHARED | MAP_ANONYMOUS;
   return mmap(NULL, size, protection, visibility, -1, 0);
+}
+
+pid_t *find_next_available_process(pid_t *pids)
+{
 }
