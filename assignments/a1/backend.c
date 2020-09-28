@@ -2,9 +2,7 @@
 
 int isCommandValid(char *command);
 int isOperationValid(char *operator);
-char *ltrim(char *s);
-char *rtrim(char *s);
-char *trim(char *s);
+void *create_shared_memory(size_t size);
 
 int main()
 {
@@ -19,18 +17,19 @@ int main()
   const char *sd_cmd = "shutdown";
 
   // number of client processes running
-  int running = 0;
-
-  // id of parent process
-  pid_t parent_pid = getpid();
+  pid_t nextpid;
 
   // the file descriptor associated with the server socket
   int sockfd;
 
-  pid_t children_pids[MAX_NB_CLIENTS];
+  //pid_t children_pids[MAX_NB_CLIENTS];
+  pid_t *children_pids_shm = create_shared_memory(PIDSIZE * MAX_NB_CLIENTS);
+  int *running_shm = create_shared_memory(INTSIZE);
+  int start_index = 0;
+  memcpy(running_shm, &start_index, INTSIZE);
 
   // set up the server socket
-  if (create_server("127.0.0.4", 10000, &sockfd) < 0)
+  if (create_server("127.0.0.5", 10000, &sockfd) < 0)
   {
     fprintf(stderr, "error in creating server\n");
     return -1;
@@ -39,7 +38,7 @@ int main()
   while (1)
   {
 
-    if (running >= MAX_NB_CLIENTS)
+    if (*running_shm >= MAX_NB_CLIENTS)
     {
       // The message buffer
       char msg[BUFSIZE];
@@ -59,24 +58,6 @@ int main()
       }
       sprintf(response, "busy");
       send_message(frontendfd, response, BUFSIZE);
-
-      // wait for a child to finish
-      int status;
-      int counter = 0;
-      for (int i = 0; i < MAX_NB_CLIENTS; i++)
-      {
-        pid_t check = waitpid(children_pids[i], &status, WNOHANG);
-        // check if process is available
-        if (check != 0)
-        {
-          counter++;
-        }
-      }
-
-      if (counter > 0)
-      {
-        running--;
-      }
     }
     else
     {
@@ -98,19 +79,23 @@ int main()
         exit(-1);
       }
       printf("accepted client connection\n\n");
+
+      *running_shm = *running_shm + 1;
+
       // fork a child process
-      children_pids[running] = fork();
+      nextpid = fork();
 
       /* ERROR IN FORKING */
-      if (children_pids[running] < 0)
+      if (nextpid < 0)
       {
         fprintf(stderr, "Fork Failed");
         exit(-1);
       }
 
       /* EXECUTION OF CHILD PROCESS */
-      else if (children_pids[running] == 0)
+      else if (nextpid == 0)
       {
+        memcpy((children_pids_shm + (*(running_shm)*PIDSIZE)), &nextpid, PIDSIZE);
         while (1)
         {
           memset(msg, 0, sizeof(msg));
@@ -200,7 +185,8 @@ int main()
               // child exits normally
               close(socket);
               close(sockfd);
-              exit(2);
+              *running_shm = *running_shm - 1;
+              exit(0);
             }
             else if (strcmp(operation, sd_cmd) == 0)
             {
@@ -208,11 +194,18 @@ int main()
               send_message(frontendfd, response, BUFSIZE);
               close(socket);
               close(sockfd);
-              for (int i = 0; i < running; i++)
+              // kill all children
+              for (int i = 0; i < *running_shm; i++)
               {
-                kill(children_pids[i], SIGTERM);
+                int status;
+                pid_t cid = *(children_pids_shm + i * PIDSIZE);
+                if (cid != getpid())
+                {
+                  kill(cid, SIGTERM);
+                }
               }
-              kill(parent_pid, SIGTERM);
+              kill(getpid(), SIGTERM);
+              kill(getppid(), SIGTERM);
             }
           }
 
@@ -223,8 +216,7 @@ int main()
 
       close(socket);
       // increment number of running processes
-      running++;
-      printf("Incremented running to: %d\n", running);
+      printf("Incremented running to: %d\n", *running_shm);
     }
   }
 }
@@ -354,4 +346,11 @@ int isCommandValid(char command[])
     }
   }
   return 0;
+}
+
+void *create_shared_memory(size_t size)
+{
+  int protection = PROT_READ | PROT_WRITE;
+  int visibility = MAP_SHARED | MAP_ANONYMOUS;
+  return mmap(NULL, size, protection, visibility, -1, 0);
 }

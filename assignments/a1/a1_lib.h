@@ -19,10 +19,12 @@
 #include <sys/socket.h>
 #include "mystringlib.h"
 #include "calculator.h"
-
+#include <sys/mman.h>
 #define BACKLOG_SIZE    10
 #define BUFSIZE 1024
 #define MAX_NB_CLIENTS 3
+#define PIDSIZE 8
+#define INTSIZE 4
 
 /**
  *  Set up a server socket.
