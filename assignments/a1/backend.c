@@ -41,7 +41,7 @@ int main()
   pid_t children_pids[MAX_NB_CLIENTS];
 
   // set up the server socket
-  if (create_server("127.0.0.30", 10000, &sockfd) < 0)
+  if (create_server("127.0.0.1", 10000, &sockfd) < 0)
   {
     fprintf(stderr, "error in creating server\n");
     return -1;
@@ -66,7 +66,7 @@ int main()
       if (socket = accept_connection(sockfd, &frontendfd) < 0)
       {
         fprintf(stderr, "error in accepting connection from client\n");
-        return -1;
+        exit(-1);
       }
       printf("accepted client connection\n\n");
       // fork a child process
@@ -76,7 +76,7 @@ int main()
       if (children_pids[running] < 0)
       {
         fprintf(stderr, "Fork Failed");
-        return 1;
+        exit(-1);
       }
 
       /* EXECUTION OF CHILD PROCESS */
@@ -90,7 +90,7 @@ int main()
           ssize_t byte_count = recv_message(frontendfd, msg, BUFSIZE);
           if (byte_count <= 0)
           {
-            printf("error in receiving message...\n");
+            //printf("error in receiving message...\n");
             break;
           }
 
@@ -178,7 +178,6 @@ int main()
               sprintf(response, "shutdown");
               send_message(frontendfd, response, BUFSIZE);
               close(socket);
-              close(sockfd);
               kill(parent_pid, SIGTERM);
             }
           }
@@ -193,7 +192,7 @@ int main()
         close(socket);
         // increment number of running processes
         running++;
-        printf("Incremented running to: %d\n", running);
+        //printf("Incremented running to: %d\n", running);
       }
     }
     // server full
