@@ -41,7 +41,7 @@ int main()
   pid_t children_pids[MAX_NB_CLIENTS];
 
   // set up the server socket
-  if (create_server("127.0.0.1", 10000, &sockfd) < 0)
+  if (create_server("127.0.0.4", 10000, &sockfd) < 0)
   {
     fprintf(stderr, "error in creating server\n");
     return -1;
@@ -49,25 +49,31 @@ int main()
 
   while (1)
   {
-    if (running < MAX_NB_CLIENTS)
+    // The message buffer
+    char msg[BUFSIZE];
+
+    // server response buffer
+    char response[BUFSIZE];
+
+    // the file descriptor of the client connection
+    int frontendfd;
+
+    // accept a client connection on a server socket
+    printf("waiting for client connection...\n\n");
+    int socket;
+    if (socket = accept_connection(sockfd, &frontendfd) < 0)
     {
-      // The message buffer
-      char msg[BUFSIZE];
+      fprintf(stderr, "error in accepting connection from client\n");
+      exit(-1);
+    }
 
-      // server response buffer
-      char response[BUFSIZE];
-
-      // the file descriptor of the client connection
-      int frontendfd;
-
-      // accept a client connection on a server socket
-      printf("waiting for client connection...\n\n");
-      int socket;
-      if (socket = accept_connection(sockfd, &frontendfd) < 0)
-      {
-        fprintf(stderr, "error in accepting connection from client\n");
-        exit(-1);
-      }
+    if (running >= MAX_NB_CLIENTS)
+    {
+      sprintf(response, "busy");
+      send_message(frontendfd, response, BUFSIZE);
+    }
+    else
+    {
       printf("accepted client connection\n\n");
       // fork a child process
       children_pids[running] = fork();
@@ -178,6 +184,7 @@ int main()
               sprintf(response, "shutdown");
               send_message(frontendfd, response, BUFSIZE);
               close(socket);
+              close(sockfd);
               kill(parent_pid, SIGTERM);
             }
           }
@@ -185,40 +192,12 @@ int main()
           send_message(frontendfd, response, BUFSIZE);
         }
       }
-
       /* EXECUTION OF PARENT PROCESS */
-      else
-      {
-        close(socket);
-        // increment number of running processes
-        running++;
-        //printf("Incremented running to: %d\n", running);
-      }
-    }
-    // server full
-    else
-    {
-      pid_t check_pid;
-      int status;
-      int available_index = -1;
-      int terminated_processes = 0;
-      for (int i = 0; i < running; i++)
-      {
-        check_pid = waitpid(children_pids[i], &status, WNOHANG);
-        if (check_pid == children_pids[i])
-        {
-          available_index = i;
-          break;
-        }
-      }
-      if (available_index != -1)
-      {
-        // swap processes Ids
-        pid_t temp = children_pids[MAX_NB_CLIENTS - 1];
-        children_pids[MAX_NB_CLIENTS - 1] = children_pids[available_index];
-        children_pids[available_index] = temp;
-        running--;
-      }
+
+      close(socket);
+      // increment number of running processes
+      running++;
+      //printf("Incremented running to: %d\n", running);
     }
   }
 }

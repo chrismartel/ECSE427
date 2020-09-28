@@ -12,12 +12,11 @@ int main()
     // stores message from server
     char backend_msg[BUFSIZE];
 
-    if (connect_to_server("127.0.0.1", 10000, &sockfd) < 0)
+    if (connect_to_server("127.0.0.4", 10000, &sockfd) < 0)
     {
         fprintf(stderr, "Error connecting client to server\n");
         return -1;
     }
-
 
     while (1)
     {
@@ -37,8 +36,12 @@ int main()
             printf("Error in receiving message from server...\n");
             break;
         }
-
-        if (strcmp(trim(backend_msg), "shutdown") == 0 || strcmp(trim(backend_msg), "exit") == 0)
+        if (strcmp(trim(backend_msg), "busy") == 0 )
+        {
+            printf("Server full at the moment\n");
+            return 0;
+        }
+        else if (strcmp(trim(backend_msg), "shutdown") == 0 || strcmp(trim(backend_msg), "exit") == 0)
         {
             return 0;
         }
