@@ -1,15 +1,4 @@
 #include "a1_lib.h"
-#include "calculator.h"
-#include "mystringlib.h"
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
-
-#define MAX_NB_CLIENTS 3
-#define BUFSIZE 1024
-#define SLEEPTIME 2
-#define SHMSIZE 4
 
 int isCommandValid(char *command);
 int isOperationValid(char *operator);
@@ -70,6 +59,24 @@ int main()
       }
       sprintf(response, "busy");
       send_message(frontendfd, response, BUFSIZE);
+
+      // wait for a child to finish
+      int status;
+      int counter = 0;
+      for (int i = 0; i < MAX_NB_CLIENTS; i++)
+      {
+        pid_t check = waitpid(children_pids[i], &status, WNOHANG);
+        // check if process is available
+        if (check != 0)
+        {
+          counter++;
+        }
+      }
+
+      if (counter > 0)
+      {
+        running--;
+      }
     }
     else
     {
@@ -193,7 +200,7 @@ int main()
               // child exits normally
               close(socket);
               close(sockfd);
-              exit(0);
+              exit(2);
             }
             else if (strcmp(operation, sd_cmd) == 0)
             {
@@ -201,7 +208,10 @@ int main()
               send_message(frontendfd, response, BUFSIZE);
               close(socket);
               close(sockfd);
-
+              for (int i = 0; i < running; i++)
+              {
+                kill(children_pids[i], SIGTERM);
+              }
               kill(parent_pid, SIGTERM);
             }
           }
@@ -214,7 +224,7 @@ int main()
       close(socket);
       // increment number of running processes
       running++;
-      //printf("Incremented running to: %d\n", running);
+      printf("Incremented running to: %d\n", running);
     }
   }
 }

@@ -1,7 +1,7 @@
 #include "a1_lib.h"
 #include "mystringlib.h"
 
-#define BUFSIZE 1024
+
 
 int main()
 {
@@ -36,6 +36,7 @@ int main()
             printf("Error in receiving message from server...\n");
             break;
         }
+        // if server returns busy
         if (strcmp(trim(backend_msg), "busy") == 0 )
         {
             printf("Server full at the moment\n");

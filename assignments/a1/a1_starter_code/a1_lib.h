@@ -16,8 +16,12 @@
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include "mystringlib.h"
+#include "calculator.h"
 
 #define BACKLOG_SIZE    10
+#define BUFSIZE 1024
+#define MAX_NB_CLIENTS 3
 
 /**
  *  Set up a server socket.
