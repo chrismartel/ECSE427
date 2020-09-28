@@ -49,31 +49,47 @@ int main()
 
   while (1)
   {
-    // The message buffer
-    char msg[BUFSIZE];
-
-    // server response buffer
-    char response[BUFSIZE];
-
-    // the file descriptor of the client connection
-    int frontendfd;
-
-    // accept a client connection on a server socket
-    printf("waiting for client connection...\n\n");
-    int socket;
-    if (socket = accept_connection(sockfd, &frontendfd) < 0)
-    {
-      fprintf(stderr, "error in accepting connection from client\n");
-      exit(-1);
-    }
 
     if (running >= MAX_NB_CLIENTS)
     {
+      // The message buffer
+      char msg[BUFSIZE];
+
+      // server response buffer
+      char response[BUFSIZE];
+
+      // the file descriptor of the client connection
+      int frontendfd;
+
+      // accept a client connection on a server socket
+      int socket;
+      if (socket = accept_connection(sockfd, &frontendfd) < 0)
+      {
+        fprintf(stderr, "error in accepting connection from client\n");
+        exit(-1);
+      }
       sprintf(response, "busy");
       send_message(frontendfd, response, BUFSIZE);
     }
     else
     {
+      // The message buffer
+      char msg[BUFSIZE];
+
+      // server response buffer
+      char response[BUFSIZE];
+
+      // the file descriptor of the client connection
+      int frontendfd;
+
+      // accept a client connection on a server socket
+      printf("waiting for client connection...\n\n");
+      int socket;
+      if (socket = accept_connection(sockfd, &frontendfd) < 0)
+      {
+        fprintf(stderr, "error in accepting connection from client\n");
+        exit(-1);
+      }
       printf("accepted client connection\n\n");
       // fork a child process
       children_pids[running] = fork();
@@ -185,6 +201,7 @@ int main()
               send_message(frontendfd, response, BUFSIZE);
               close(socket);
               close(sockfd);
+
               kill(parent_pid, SIGTERM);
             }
           }
