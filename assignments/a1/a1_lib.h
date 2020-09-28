@@ -23,7 +23,7 @@
 
 #define BACKLOG_SIZE 10
 #define BUFSIZE 1024
-#define MAX_NB_CLIENTS 3
+#define MAX_NB_CLIENTS 5
 #define PIDSIZE 8
 #define INTSIZE 4
 
