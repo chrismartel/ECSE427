@@ -4,7 +4,7 @@ int isCommandValid(char *command);
 int isOperatorValid(char *operator);
 void *create_shared_memory(size_t size);
 
-int main()
+int main(int argc, char *argv[])
 {
 
   /* list of valid commands */
@@ -13,8 +13,15 @@ int main()
   const char *sleep_cmd = "sleep";
   const char *fact_cmd = "factorial";
   const char *div_cmd = "divide";
-  const char *exit_cmd = "exit";
+  const char *quit_cmd = "quit";
   const char *sd_cmd = "shutdown";
+
+  /* host ip */
+  const char *host_ip = argv[1];
+
+  /* host port */
+  const char *arg2 = argv[2];
+  const int host_port = atoi(arg2);
 
   /* next process id to fork*/
   pid_t nextpid;
@@ -36,11 +43,13 @@ int main()
 
   // SETUP SERVER SOCKET //
 
-  if (create_server("127.0.0.5", 10000, &sockfd) < 0)
+  if (create_server(host_ip, host_port, &sockfd) < 0)
   {
     fprintf(stderr, "error in creating server\n");
     return -1;
   }
+  fflush(stdout);
+  printf("Server listening on %s:%d\n", host_ip, host_port);
 
   while (1)
   {
@@ -93,7 +102,6 @@ int main()
       {
         /* store child id in shared memory segment*/
         memcpy((children_pids_shm + (*(nclients_shm)*PIDSIZE)), &nextpid, PIDSIZE);
-
         // RECEIVE FRONTEND COMMANDS //
         while (1)
         {
@@ -109,17 +117,34 @@ int main()
 
           // CHECK VALIDITY OF COMMAND //
 
-          if (isCommandValid(msg) != 0)
+          int ret = isCommandValid(msg);
+
+          /* unvalid command */
+          if (ret != 0)
           {
-            strncpy(response, "NOT_FOUND", BUFSIZE);
+
+            if (ret == -2)
+            {
+              char errorMessage[BUFSIZE];
+
+              strncpy(errorMessage, msg, BUFSIZE);
+
+              char *command = strtok(errorMessage, " ");
+              sprintf(response, "Error: Command %c%s%c not found", '"',command,'"');
+            }
+            else
+            {
+              sprintf(response, "Error: Invalid Command");
+            }
           }
 
+          /* valid command */
           else
           {
-            // PARSE COMMAND //
-
             char msg_cpy[BUFSIZE];
             strncpy(msg_cpy, msg, BUFSIZE);
+
+            // PARSE COMMAND //
 
             /* operator */
             char *operator= NULL;
@@ -168,7 +193,7 @@ int main()
               float fdiv = divideFloats(atof(op1), atof(op2));
               if (fdiv == 0)
               {
-                sprintf(response, "Error: Division by 0");
+                sprintf(response, "Error: Division by zero");
               }
               else
               {
@@ -179,7 +204,7 @@ int main()
             else if (strcmp(operator, sleep_cmd) == 0)
             {
               sleepFor(atoi(op1));
-              sprintf(response, "Slept for %d seconds", atoi(op1));
+              sprintf(response, "sleep");
             }
             // FACTORIAL COMMAND
             else if (strcmp(operator, fact_cmd) == 0)
@@ -188,7 +213,7 @@ int main()
               sprintf(response, "%d", ifac);
             }
             // EXIT COMMAND
-            else if (strcmp(operator, exit_cmd) == 0)
+            else if (strcmp(operator, quit_cmd) == 0)
             {
               sprintf(response, "exit");
               send_message(frontendfd, response, BUFSIZE);
@@ -242,7 +267,7 @@ int main()
 */
 int isOperatorValid(char *operator)
 {
-  if ((strcmp(operator, "add") == 0) || (strcmp(operator, "shutdown") == 0) || (strcmp(operator, "exit") == 0) || (strcmp(operator, "multiply") == 0) || (strcmp(operator, "divide") == 0) || (strcmp(operator, "sleep") == 0) || (strcmp(operator, "factorial") == 0))
+  if ((strcmp(operator, "add") == 0) || (strcmp(operator, "shutdown") == 0) || (strcmp(operator, "quit") == 0) || (strcmp(operator, "multiply") == 0) || (strcmp(operator, "divide") == 0) || (strcmp(operator, "sleep") == 0) || (strcmp(operator, "factorial") == 0))
   {
     return 0;
   }
@@ -294,15 +319,15 @@ int isCommandValid(char command[])
 
   if (n >= 4)
   {
-    printf("Invalid Command: too many operators\n");
+    fprintf(stderr,"Invalid Command: too many operators\n");
     return -1;
   }
 
   // check if operator is valid
   if (isOperatorValid(operator) != 0)
   {
-    printf("Invalid command: invalid operator\n");
-    return -1;
+    fprintf(stderr,"Invalid command: invalid operator\n");
+    return -2;
   }
 
   // add/multiply validity
@@ -311,15 +336,15 @@ int isCommandValid(char command[])
     // check if correct number of operators
     if (n > 3)
     {
-      printf("Invalid command: wrong number of operators for this command\n");
-      return -1;
+      fprintf(stderr,"Invalid command: wrong number of operators for this command\n");
+      return -3;
     }
     // check that op 1 and op 2 are integers
     if ((atoi(op1) == 0 && atoi(op1) != 0) || (atoi(op2) == 0 && atoi(op2) != 0))
     {
-      printf("Invalid command: operators must be ints\n");
+      fprintf(stderr,"Invalid command: operators must be ints\n");
 
-      return -1;
+      return -4;
     }
   }
 
@@ -329,14 +354,14 @@ int isCommandValid(char command[])
     // check if correct number of operators
     if (n > 3)
     {
-      printf("Invalid command: wrong number of operators for this command\n");
-      return -1;
+      fprintf(stderr,"Invalid command: wrong number of operators for this command\n");
+      return -3;
     }
     // check that op 1 and op 2 are floats
     if ((atof(op1) == 0 && atof(op1) != 0) || (atof(op2) == 0 && atof(op2) != 0))
     {
-      printf("Invalid command: operators must be floats\n");
-      return -1;
+      fprintf(stderr,"Invalid command: operators must be floats\n");
+      return -5;
     }
   }
 
@@ -346,14 +371,14 @@ int isCommandValid(char command[])
     // check if correct number of operators
     if (n > 2)
     {
-      printf("Invalid command: wrong number of operators for this command\n");
-      return -1;
+      fprintf(stderr,"Invalid command: wrong number of operators for this command\n");
+      return -3;
     }
     // check that op 1 is integer
     if (atoi(op1) == 0 && atoi(op1) != 0)
     {
-      printf("Invalid command: operator must be int\n");
-      return -1;
+      fprintf(stderr,"Invalid command: operator must be int\n");
+      return -4;
     }
   }
   return 0;
@@ -371,8 +396,4 @@ void *create_shared_memory(size_t size)
   int protection = PROT_READ | PROT_WRITE;
   int visibility = MAP_SHARED | MAP_ANONYMOUS;
   return mmap(NULL, size, protection, visibility, -1, 0);
-}
-
-pid_t *find_next_available_process(pid_t *pids)
-{
 }

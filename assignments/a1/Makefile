@@ -2,6 +2,8 @@
 
 all: backend frontend 
 
+rpc: backend frontend
+
 backend: backend.o a1_lib.o calculator.o mystringlib.o
 	gcc backend.o a1_lib.o calculator.o mystringlib.o -o backend
 
@@ -24,4 +26,4 @@ mystringlib.o: mystringlib.c
 	gcc -c mystringlib.c
 
 clean:
-	rm *.o backend frontend test
+	rm *.o backend frontend
