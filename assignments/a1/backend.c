@@ -191,7 +191,7 @@ int main(int argc, char *argv[])
             else if (strcmp(operator, div_cmd) == 0)
             {
               float fdiv = divideFloats(atof(op1), atof(op2));
-              if (fdiv == 0)
+              if (fdiv == 99999999)
               {
                 sprintf(response, "Error: Division by zero");
               }

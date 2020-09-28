@@ -17,7 +17,7 @@ int multiplyInts(int a, int b){
 // divide two float numbers
 float divideFloats(float a, float b){
     if(b==0.0){
-        return 0.0;
+        return 99999999;
     }
     else return (a / b);
 }
