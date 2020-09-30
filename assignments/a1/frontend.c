@@ -35,6 +35,24 @@ int main(int argc, char *argv[])
         return -1;
     }
 
+    // CHECK IF SERVER IS AVAILABLE //
+
+    /* receive server response*/
+    ssize_t byte_count = recv_message(sockfd, backend_msg, sizeof(backend_msg));
+    if (byte_count <= 0)
+    {
+        fflush(stdout);
+        fprintf(stderr, "Error in receiving message from server...\n");
+        return 0;
+    }
+    // SERVER IS BUSY //
+    if (strcmp(trim(backend_msg), "busy") == 0)
+    {
+        fflush(stdout);
+        fprintf(stderr, "Server busy at the moment\nTry again later!\n");
+        return 0;
+    }
+
     // PROMPT USER COMMANDs //
     while (1)
     {
@@ -78,7 +96,6 @@ int main(int argc, char *argv[])
         /* send serialized message to server*/
         send_message(sockfd, (char *)&message, sizeof(message));
 
-
         /* receive server response*/
         ssize_t byte_count = recv_message(sockfd, backend_msg, sizeof(backend_msg));
         if (byte_count <= 0)
@@ -87,15 +104,8 @@ int main(int argc, char *argv[])
             fprintf(stderr, "Error in receiving message from server...\n");
             break;
         }
-        // SERVER IS BUSY //
-        if (strcmp(trim(backend_msg), "busy") == 0)
-        {
-            fflush(stdout);
-            fprintf(stderr, "Server busy at the moment\n");
-            return 0;
-        }
         // SLEEP //
-        else if (strcmp(trim(backend_msg), "sleep") == 0)
+        if (strcmp(trim(backend_msg), "sleep") == 0)
         {
             fflush(stdout);
         }

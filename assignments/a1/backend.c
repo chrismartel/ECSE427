@@ -85,6 +85,7 @@ int main(int argc, char *argv[])
     /*server unavailable*/
     if (*nclients_shm >= MAX_NB_CLIENTS)
     {
+      /* indicate to frontend that server is not available*/
       sprintf(response, "busy");
       send_message(frontendfd, response, BUFSIZE);
     }
@@ -92,6 +93,10 @@ int main(int argc, char *argv[])
     /* server available*/
     else
     {
+      /* indicate to frontend that server is available */
+      sprintf(response, "available");
+      send_message(frontendfd, response, BUFSIZE);
+
       /* increment number of clients running on server*/
       *nclients_shm = *nclients_shm + 1;
 
