@@ -19,6 +19,13 @@ int main(int argc, char *argv[])
     const char *arg2 = argv[2];
     const int host_port = atoi(arg2);
 
+    /* define message struct */
+    struct Message
+    {
+        char command[COMMANDSIZE];
+        char parameters[NBPARAMS][PARAMSIZE];
+    };
+
     // CONNECT TO SERVER //
     if (connect_to_server(host_ip, host_port, &sockfd) < 0)
     {
@@ -36,8 +43,38 @@ int main(int argc, char *argv[])
         /* get command from terminal*/
         fgets(user_input, BUFSIZE, stdin);
 
-        /* send command to server*/
-        send_message(sockfd, user_input, BUFSIZE);
+        /* declare message struct*/
+        struct Message message;
+
+        char input_cpy[BUFSIZE];
+        strncpy(input_cpy, user_input, BUFSIZE);
+
+        /* split message into tokens*/
+        char *param = strtok(input_cpy, " ");
+        int n = 0;
+        while (param != NULL)
+        {
+            if (n == 0)
+            {
+                /* set command param of message*/
+                strncpy(message.command, trim(param), COMMANDSIZE);
+            }
+            else if (n == 1)
+            {
+                /* set first operand of message */
+                strncpy(message.parameters[0], trim(param), PARAMSIZE);
+            }
+            else if (n == 2)
+            {
+                /* set second operand of message*/
+                strncpy(message.parameters[1], trim(param), PARAMSIZE);
+            }
+            n++;
+            param = strtok(NULL, " ");
+        }
+
+        /* send serialized message to server*/
+        send_message(sockfd, (char *)&message, sizeof(message));
 
         /* receive server response*/
         ssize_t byte_count = recv_message(sockfd, backend_msg, sizeof(backend_msg));

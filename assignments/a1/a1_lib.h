@@ -26,6 +26,9 @@
 #define MAX_NB_CLIENTS 5
 #define PIDSIZE 8
 #define INTSIZE 4
+#define COMMANDSIZE 12
+#define PARAMSIZE 4
+#define NBPARAMS 2
 
 /**
  *  Set up a server socket.

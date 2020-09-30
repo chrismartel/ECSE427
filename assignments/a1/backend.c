@@ -7,6 +7,13 @@ void *create_shared_memory(size_t size);
 int main(int argc, char *argv[])
 {
 
+  /* define command struct */
+  struct Message
+  {
+    char command[COMMANDSIZE];
+    char parameters[NBPARAMS][PARAMSIZE];
+  };
+
   /* list of valid commands */
   const char *add_cmd = "add";
   const char *mul_cmd = "multiply";
@@ -86,7 +93,6 @@ int main(int argc, char *argv[])
     {
       /* increment number of clients running on server*/
       *nclients_shm = *nclients_shm + 1;
-      //printf("accepted client connection\nCurrently serving %d clients\n", *nclients_shm);
 
       /* fork a child process */
       nextpid = fork();
@@ -102,93 +108,63 @@ int main(int argc, char *argv[])
       {
         /* store child id in shared memory segment*/
         memcpy((children_pids_shm + (*(nclients_shm)*PIDSIZE)), &nextpid, PIDSIZE);
-        // RECEIVE FRONTEND COMMANDS //
+        // RECEIVE FRONTEND MESSAGES //
         while (1)
         {
           memset(msg, 0, sizeof(msg));
           memset(response, 0, sizeof(response));
 
-          ssize_t byte_count = recv_message(frontendfd, msg, BUFSIZE);
+          /* receive message from frontend*/
+          ssize_t byte_count = recv_message(frontendfd, msg, sizeof(msg));
           if (byte_count <= 0)
           {
             printf("error in receiving message...\n");
             break;
           }
 
+          /* convert message received into message struct */
+          struct Message *msg_struct = (struct Message *)msg;
+
           // CHECK VALIDITY OF COMMAND //
+          int ret = isCommandValid(msg_struct->command);
 
-          int ret = isCommandValid(msg);
-
-          /* unvalid command */
-          if (ret != 0)
+          /* invalid command */
+          if (ret == -1)
           {
+            char errorMessage[BUFSIZE];
 
-            if (ret == -2)
-            {
-              char errorMessage[BUFSIZE];
+            strncpy(errorMessage, msg, BUFSIZE);
 
-              strncpy(errorMessage, msg, BUFSIZE);
-
-              char *command = strtok(errorMessage, " ");
-              sprintf(response, "Error: Command %c%s%c not found", '"',command,'"');
-            }
-            else
-            {
-              sprintf(response, "Error: Invalid Command");
-            }
+            char *invalid_command = strtok(errorMessage, " ");
+            sprintf(response, "Error: Command %c%s%c not found", '"', invalid_command, '"');
           }
 
           /* valid command */
           else
           {
-            char msg_cpy[BUFSIZE];
-            strncpy(msg_cpy, msg, BUFSIZE);
-
-            // PARSE COMMAND //
-
-            /* operator */
-            char *operator= NULL;
+            /* command */
+            char *command = msg_struct->command;
 
             /* first operand */
-            char *op1 = "0";
+            char *op1 = msg_struct->parameters[0];
 
             /* second operand*/
-            char *op2 = "0";
+            char *op2 = msg_struct->parameters[1];
 
-            /* split command into tokens*/
-            char *param = strtok(msg_cpy, " ");
-            int n = 0;
-            while (param != NULL)
-            {
-              n++;
-              if (n == 1)
-              {
-                operator= trim(param);
-              }
-              else if (n == 2)
-              {
-                op1 = trim(param);
-              }
-              else if (n == 3)
-              {
-                op2 = trim(param);
-              }
-              param = strtok(NULL, " ");
-            }
             // ADD COMMAND //
-            if (strcmp(operator, add_cmd) == 0)
+            if (strcmp(command, add_cmd) == 0)
             {
               int isum = addInts(atoi(op1), atoi(op2));
               sprintf(response, "%d", isum);
             }
             // MULTIPLICATION COMMAND //
-            else if (strcmp(operator, mul_cmd) == 0)
+            else if (strcmp(command, mul_cmd) == 0)
             {
               int imul = multiplyInts(atoi(op1), atoi(op2));
               sprintf(response, "%d", imul);
             }
             // DIVISION COMMAND //
-            else if (strcmp(operator, div_cmd) == 0)
+            else if (strcmp(command, div_cmd) == 0)
             {
               float fdiv = divideFloats(atof(op1), atof(op2));
               if (fdiv == 99999999)
@@ -201,19 +177,19 @@ int main(int argc, char *argv[])
               }
             }
             // SLEEP COMMAND //
-            else if (strcmp(operator, sleep_cmd) == 0)
+            else if (strcmp(command, sleep_cmd) == 0)
             {
               sleepFor(atoi(op1));
               sprintf(response, "sleep");
             }
             // FACTORIAL COMMAND
-            else if (strcmp(operator, fact_cmd) == 0)
+            else if (strcmp(command, fact_cmd) == 0)
             {
               int ifac = factorial(atoi(op1));
               sprintf(response, "%d", ifac);
             }
             // EXIT COMMAND
-            else if (strcmp(operator, quit_cmd) == 0)
+            else if (strcmp(command, quit_cmd) == 0)
             {
               sprintf(response, "exit");
               send_message(frontendfd, response, BUFSIZE);
@@ -224,7 +200,7 @@ int main(int argc, char *argv[])
               exit(0);
             }
             // SHUTDOWN COMMAND
-            else if (strcmp(operator, sd_cmd) == 0)
+            else if (strcmp(command, sd_cmd) == 0)
             {
               sprintf(response, "shutdown");
               send_message(frontendfd, response, BUFSIZE);
@@ -265,7 +241,7 @@ int main(int argc, char *argv[])
  * @return:     0 if the string is a valid operator
  *              -1 if the string is not a valid operator
 */
-int isOperatorValid(char *operator)
+int isCommandValid(char *operator)
 {
   if ((strcmp(operator, "add") == 0) || (strcmp(operator, "shutdown") == 0) || (strcmp(operator, "quit") == 0) || (strcmp(operator, "multiply") == 0) || (strcmp(operator, "divide") == 0) || (strcmp(operator, "sleep") == 0) || (strcmp(operator, "factorial") == 0))
   {
@@ -275,113 +251,6 @@ int isOperatorValid(char *operator)
   {
     return -1;
   }
-}
-
-/**
- * Method verifying if the calculator command is valid
- * @params:
- *  command:   pointer to the command string
- * 
- * @return:     0 if the command is valid
- *              -1 if the command is not valid
-*/
-int isCommandValid(char command[])
-{
-  char *operator= NULL;
-  char *op1 = "0";
-  char *op2 = "0";
-  char command_cpy[BUFSIZE];
-  strncpy(command_cpy, command, BUFSIZE);
-
-  char *param = strtok(command_cpy, " ");
-  int n = 0;
-
-  // parse the command into tokens
-  while (param != NULL)
-  {
-    n++;
-    if (n == 1)
-    {
-      operator= trim(param);
-    }
-
-    else if (n == 2)
-    {
-      op1 = trim(param);
-    }
-    else if (n == 3)
-    {
-      op2 = trim(param);
-    }
-
-    param = strtok(NULL, " ");
-  }
-
-  if (n >= 4)
-  {
-    fprintf(stderr,"Invalid Command: too many operators\n");
-    return -1;
-  }
-
-  // check if operator is valid
-  if (isOperatorValid(operator) != 0)
-  {
-    fprintf(stderr,"Invalid command: invalid operator\n");
-    return -2;
-  }
-
-  // add/multiply validity
-  if (strcmp(operator, "add") == 0 || strcmp(operator, "multiply") == 0)
-  {
-    // check if correct number of operators
-    if (n > 3)
-    {
-      fprintf(stderr,"Invalid command: wrong number of operators for this command\n");
-      return -3;
-    }
-    // check that op 1 and op 2 are integers
-    if ((atoi(op1) == 0 && atoi(op1) != 0) || (atoi(op2) == 0 && atoi(op2) != 0))
-    {
-      fprintf(stderr,"Invalid command: operators must be ints\n");
-
-      return -4;
-    }
-  }
-
-  // divide validity
-  else if (strcmp(operator, "divide") == 0)
-  {
-    // check if correct number of operators
-    if (n > 3)
-    {
-      fprintf(stderr,"Invalid command: wrong number of operators for this command\n");
-      return -3;
-    }
-    // check that op 1 and op 2 are floats
-    if ((atof(op1) == 0 && atof(op1) != 0) || (atof(op2) == 0 && atof(op2) != 0))
-    {
-      fprintf(stderr,"Invalid command: operators must be floats\n");
-      return -5;
-    }
-  }
-
-  // sleep/factorial validity
-  else if (strcmp(operator, "sleep") == 0 || strcmp(operator, "factorial") == 0)
-  {
-    // check if correct number of operators
-    if (n > 2)
-    {
-      fprintf(stderr,"Invalid command: wrong number of operators for this command\n");
-      return -3;
-    }
-    // check that op 1 is integer
-    if (atoi(op1) == 0 && atoi(op1) != 0)
-    {
-      fprintf(stderr,"Invalid command: operator must be int\n");
-      return -4;
-    }
-  }
-  return 0;
 }
 
 /**
