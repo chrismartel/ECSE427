@@ -12,6 +12,7 @@ int main(int argc, char *argv[])
   {
     char command[COMMANDSIZE];
     char parameters[NBPARAMS][PARAMSIZE];
+    int nbargs;
   };
 
   /* list of valid commands */
@@ -151,75 +152,127 @@ int main(int argc, char *argv[])
             /* second operand*/
             char *op2 = msg_struct->parameters[1];
 
+            /* number of arguments */
+            int nbargs = msg_struct->nbargs;
+
             // ADD COMMAND //
             if (strcmp(command, add_cmd) == 0)
             {
-              int isum = addInts(atoi(op1), atoi(op2));
-              sprintf(response, "%d", isum);
+              if (nbargs != 3)
+              {
+                sprintf(response, "Error: Command %cadd%c only takes 2 arguments\n", '"', '"');
+              }
+              else
+              {
+                int isum = addInts(atoi(op1), atoi(op2));
+                sprintf(response, "%d", isum);
+              }
             }
             // MULTIPLICATION COMMAND //
             else if (strcmp(command, mul_cmd) == 0)
             {
-              int imul = multiplyInts(atoi(op1), atoi(op2));
-              sprintf(response, "%d", imul);
+              if (nbargs != 3)
+              {
+                sprintf(response, "Error: Command %cmultiply%c only takes 2 arguments\n", '"', '"');
+              }
+              else
+              {
+                int imul = multiplyInts(atoi(op1), atoi(op2));
+                sprintf(response, "%d", imul);
+              }
             }
             // DIVISION COMMAND //
             else if (strcmp(command, div_cmd) == 0)
             {
-              float fdiv = divideFloats(atof(op1), atof(op2));
-              if (fdiv == 99999999)
+              if (nbargs != 3)
               {
-                sprintf(response, "Error: Division by zero");
+                sprintf(response, "Error: Command %cdivide%c only takes 2 arguments\n", '"', '"');
               }
               else
               {
-                sprintf(response, "%f", fdiv);
+                float fdiv = divideFloats(atof(op1), atof(op2));
+                if (fdiv == 99999999)
+                {
+                  sprintf(response, "Error: Division by zero");
+                }
+                else
+                {
+                  sprintf(response, "%f", fdiv);
+                }
               }
             }
             // SLEEP COMMAND //
             else if (strcmp(command, sleep_cmd) == 0)
             {
-              sleepFor(atoi(op1));
-              sprintf(response, "sleep");
+              if (nbargs != 2)
+              {
+                sprintf(response, "Error: Command %csleep%c only takes 1 argument\n", '"', '"');
+              }
+              else
+              {
+                sleepFor(atoi(op1));
+                sprintf(response, "sleep");
+              }
             }
             // FACTORIAL COMMAND
             else if (strcmp(command, fact_cmd) == 0)
             {
-              int ifac = factorial(atoi(op1));
-              sprintf(response, "%d", ifac);
+              if (nbargs != 2)
+              {
+                sprintf(response, "Error: Command %cfactorial%c only takes 1 argument\n", '"', '"');
+              }
+              else
+              {
+                int ifac = factorial(atoi(op1));
+                sprintf(response, "%d", ifac);
+              }
             }
-            // EXIT COMMAND
+            // QUIT COMMAND
             else if (strcmp(command, quit_cmd) == 0)
             {
-              sprintf(response, "exit");
-              send_message(frontendfd, response, BUFSIZE);
-              close(socket);
-              close(sockfd);
-              /* decrement number of running clients */
-              *nclients_shm = *nclients_shm - 1;
-              exit(0);
+              if (nbargs != 1)
+              {
+                sprintf(response, "Error: Command %cquit%c does not take any argument\n", '"', '"');
+              }
+              else
+              {
+                sprintf(response, "quit");
+                send_message(frontendfd, response, BUFSIZE);
+                close(socket);
+                close(sockfd);
+                /* decrement number of running clients */
+                *nclients_shm = *nclients_shm - 1;
+                exit(0);
+              }
             }
             // SHUTDOWN COMMAND
             else if (strcmp(command, sd_cmd) == 0)
             {
-              sprintf(response, "shutdown");
-              send_message(frontendfd, response, BUFSIZE);
-              close(socket);
-              close(sockfd);
-              /* kill all children processes*/
-              for (int i = 0; i < *nclients_shm; i++)
+              if (nbargs != 1)
               {
-                int status;
-                pid_t cid = *(children_pids_shm + i * PIDSIZE);
-                if (cid != getpid())
-                {
-                  kill(cid, SIGTERM);
-                }
+                sprintf(response, "Error: Command %cshutdown%c does not take any argument\n", '"', '"');
               }
-              /* kill parent process*/
-              kill(getppid(), SIGTERM);
-              /* kill current process*/
-              kill(getpid(), SIGTERM);
+              else
+              {
+                sprintf(response, "shutdown");
+                send_message(frontendfd, response, BUFSIZE);
+                close(socket);
+                close(sockfd);
+                /* kill all children processes*/
+                for (int i = 0; i < *nclients_shm; i++)
+                {
+                  int status;
+                  pid_t cid = *(children_pids_shm + i * PIDSIZE);
+                  if (cid != getpid())
+                  {
+                    kill(cid, SIGTERM);
+                  }
+                }
+                /* kill parent process*/
+                kill(getppid(), SIGTERM);
+                /* kill current process*/
+                kill(getpid(), SIGTERM);
+              }
             }
           }
 

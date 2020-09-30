@@ -24,6 +24,7 @@ int main(int argc, char *argv[])
     {
         char command[COMMANDSIZE];
         char parameters[NBPARAMS][PARAMSIZE];
+        int nbargs;
     };
 
     // CONNECT TO SERVER //
@@ -72,9 +73,11 @@ int main(int argc, char *argv[])
             n++;
             param = strtok(NULL, " ");
         }
+        message.nbargs = n;
 
         /* send serialized message to server*/
         send_message(sockfd, (char *)&message, sizeof(message));
+
 
         /* receive server response*/
         ssize_t byte_count = recv_message(sockfd, backend_msg, sizeof(backend_msg));
@@ -96,8 +99,8 @@ int main(int argc, char *argv[])
         {
             fflush(stdout);
         }
-        // EXIT OR SHUTDOWN //
-        else if (strcmp(trim(backend_msg), "shutdown") == 0 || strcmp(trim(backend_msg), "exit") == 0)
+        // QUIT OR SHUTDOWN //
+        else if (strcmp(trim(backend_msg), "shutdown") == 0 || strcmp(trim(backend_msg), "quit") == 0)
         {
             fflush(stdout);
             printf("Good Bye!\n");
