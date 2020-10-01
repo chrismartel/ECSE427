@@ -229,7 +229,18 @@ int main(int argc, char *argv[])
               else
               {
                 int ifac = factorial(atoi(op1));
-                sprintf(response, "%d", ifac);
+                if (ifac == -1)
+                {
+                  sprintf(response, "Error: factorial argument must be greater than 0");
+                }
+                else if (ifac == -2)
+                {
+                  sprintf(response, "Error: factorial argument must be less than 20");
+                }
+                else
+                {
+                  sprintf(response, "%d", ifac);
+                }
               }
             }
             // QUIT COMMAND

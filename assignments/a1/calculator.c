@@ -41,6 +41,10 @@ uint64_t factorial(int x)
     {
         return -1;
     }
+    else if (x > 20)
+    {
+        return -2;
+    }
     else if (x == 0)
     {
         return 1;
