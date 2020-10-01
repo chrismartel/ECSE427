@@ -163,46 +163,81 @@ int main(int argc, char *argv[])
             // ADD COMMAND //
             if (strcmp(command, add_cmd) == 0)
             {
+              // check number of arguments
               if (nbargs != 3)
               {
-                sprintf(response, "Error: Command %cadd%c only takes 2 arguments\n", '"', '"');
+                sprintf(response, "Error: Command %cadd%c takes 2 arguments\n", '"', '"');
               }
               else
               {
-                int isum = addInts(atoi(op1), atoi(op2));
-                sprintf(response, "%d", isum);
+                int int1 = atoi(op1);
+                int int2 = atoi(op2);
+                // chekc that arguments are integers
+                if (int1 == 0 && strcmp(op1, "0") != 0 || int2 == 0 && strcmp(op2, "0") != 0)
+                {
+                  sprintf(response, "arguments of command %cadd%c must be integers", '"', '"');
+                }
+                else
+                {
+                  int isum = addInts(int1, int2);
+                  sprintf(response, "%d", isum);
+                }
               }
             }
             // MULTIPLICATION COMMAND //
             else if (strcmp(command, mul_cmd) == 0)
             {
+              // check number of arguments
               if (nbargs != 3)
               {
-                sprintf(response, "Error: Command %cmultiply%c only takes 2 arguments\n", '"', '"');
+                sprintf(response, "Error: Command %cmultiply%c takes 2 arguments\n", '"', '"');
               }
               else
               {
-                int imul = multiplyInts(atoi(op1), atoi(op2));
-                sprintf(response, "%d", imul);
+                int int1 = atoi(op1);
+                int int2 = atoi(op2);
+                // check if arguments are integers
+                if (int1 == 0 && strcmp(op1, "0") != 0 || int2 == 0 && strcmp(op2, "0") != 0)
+                {
+                  sprintf(response, "arguments of command %cmultiply%c must be integers", '"', '"');
+                }
+                else
+                {
+                  int imul = multiplyInts(atoi(op1), atoi(op2));
+                  sprintf(response, "%d", imul);
+                }
               }
             }
             // DIVISION COMMAND //
             else if (strcmp(command, div_cmd) == 0)
             {
+              // check number of arguments
               if (nbargs != 3)
               {
-                sprintf(response, "Error: Command %cdivide%c only takes 2 arguments\n", '"', '"');
+                sprintf(response, "Error: Command %cdivide%c takes 2 arguments\n", '"', '"');
               }
               else
               {
-                float fdiv = divideFloats(atof(op1), atof(op2));
-                if (fdiv == 99999999)
+                float f1 = atof(op1);
+                float f2 = atof(op2);
+
+                // check that arguments are floats
+                if (f1 == 0 && strcmp(op1, "0") != 0 || f2 == 0 && strcmp(op2, "0") != 0)
                 {
-                  sprintf(response, "Error: Division by zero");
+                  sprintf(response, "arguments of command %cdivide%c must be floats", '"', '"');
                 }
                 else
                 {
-                  sprintf(response, "%f", fdiv);
+                  float fdiv = divideFloats(f1, f2);
+                  // check division by 0
+                  if (fdiv == 99999999)
+                  {
+                    sprintf(response, "Error: Division by zero");
+                  }
+                  else
+                  {
+                    sprintf(response, "%f", fdiv);
+                  }
                 }
               }
             }
@@ -211,12 +246,22 @@ int main(int argc, char *argv[])
             {
               if (nbargs != 2)
               {
-                sprintf(response, "Error: Command %csleep%c only takes 1 argument\n", '"', '"');
+                sprintf(response, "Error: Command %csleep%c takes 1 argument\n", '"', '"');
               }
               else
               {
-                sleepFor(atoi(op1));
-                sprintf(response, "sleep");
+                int int1 = atoi(op1);
+
+                // check if argument is integer
+                if (int1 == 0 && strcmp(op1, "0") != 0)
+                {
+                  sprintf(response, "argument of command %csleep%c must be an integer", '"', '"');
+                }
+                else
+                {
+                  sleepFor(int1);
+                  sprintf(response, "sleep");
+                }
               }
             }
             // FACTORIAL COMMAND
@@ -224,22 +269,31 @@ int main(int argc, char *argv[])
             {
               if (nbargs != 2)
               {
-                sprintf(response, "Error: Command %cfactorial%c only takes 1 argument\n", '"', '"');
+                sprintf(response, "Error: Command %cfactorial%c takes 1 argument\n", '"', '"');
               }
               else
               {
-                int ifac = factorial(atoi(op1));
-                if (ifac == -1)
+                int int1 = atoi(op1);
+                // check if argument is integer
+                if (int1 == 0 && strcmp(op1, "0") != 0)
                 {
-                  sprintf(response, "Error: factorial argument must be greater than 0");
-                }
-                else if (ifac == -2)
-                {
-                  sprintf(response, "Error: factorial argument must be less than 20");
+                  sprintf(response, "argument of command %cfactorial%c must be an integer", '"', '"');
                 }
                 else
                 {
-                  sprintf(response, "%d", ifac);
+                  int ifac = factorial(int1);
+                  if (ifac == -1)
+                  {
+                    sprintf(response, "Error: factorial argument must be greater than 0");
+                  }
+                  else if (ifac == -2)
+                  {
+                    sprintf(response, "Error: factorial argument must be less than 20");
+                  }
+                  else
+                  {
+                    sprintf(response, "%d", ifac);
+                  }
                 }
               }
             }
