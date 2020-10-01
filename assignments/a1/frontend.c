@@ -56,6 +56,8 @@ int main(int argc, char *argv[])
     // PROMPT USER COMMANDs //
     while (1)
     {
+        fflush(stdout);
+        printf(">> ");
         memset(user_input, 0, sizeof(user_input));
         memset(backend_msg, 0, sizeof(backend_msg));
 
