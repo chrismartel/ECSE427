@@ -259,8 +259,15 @@ int main(int argc, char *argv[])
                 }
                 else
                 {
-                  sleepFor(int1);
-                  sprintf(response, "sleep");
+                  if (int1 < 0)
+                  {
+                    sprintf(response, "argument of command %csleep%c must be positive", '"', '"');
+                  }
+                  else
+                  {
+                    sleepFor(int1);
+                    sprintf(response, "sleep");
+                  }
                 }
               }
             }

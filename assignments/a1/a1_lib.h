@@ -27,7 +27,9 @@
 #define PIDSIZE 8
 #define INTSIZE 4
 #define COMMANDSIZE 12
-#define PARAMSIZE 4
+
+/* max integer value is 2150000000 hence 10 bytes + 1 byte of null char required for string reprsentation*/
+#define PARAMSIZE 11
 #define NBPARAMS 2
 
 /**

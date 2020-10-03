@@ -175,7 +175,7 @@ int main(int argc, char *argv[])
     struct Request
     {
         char commandoperation[COMMANDLENGTH];
-        char parameters[ARGUMENTLENGTH][NUMBEROFARGUMENTS];
+        char parameters[NUMBEROFARGUMENTS][ARGUMENTLENGTH];
         int numberOfArgs;
     };
 
@@ -250,7 +250,10 @@ int main(int argc, char *argv[])
 
                     // To pass messages as structs
                     struct Request *request_struct = (struct Request *)request;
-                    printf("command operation: %s\n",request_struct->commandoperation);
+                    printf("command operation: %s\n", request_struct->commandoperation);
+                    printf("param 1: %s\n", request_struct->parameters[0]);
+                    printf("param2: %s\n", request_struct->parameters[1]);
+
                     int commandReceived = isValid(request_struct->commandoperation);
                     if (commandReceived == -1)
                     {
@@ -262,12 +265,8 @@ int main(int argc, char *argv[])
 
                         /** Data variables for command **/
                         char *command = request_struct->commandoperation;
-                        printf("%s\n", command);
                         char *first_argument = request_struct->parameters[0];
-                        printf("%s\n", first_argument);
-
                         char *second_argument = request_struct->parameters[1];
-                        printf("%s\n", first_argument);
 
                         int numberOfArgs = request_struct->numberOfArgs;
 
