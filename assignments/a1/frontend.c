@@ -112,7 +112,7 @@ int main(int argc, char *argv[])
             fflush(stdout);
         }
         // QUIT OR SHUTDOWN //
-        else if (strcmp(trim(backend_msg), "shutdown") == 0 || strcmp(trim(backend_msg), "quit") == 0)
+        else if (strcmp(trim(backend_msg), "shutdown") == 0 || strcmp(trim(backend_msg), "exit") == 0)
         {
             fflush(stdout);
             printf("Good Bye!\n");

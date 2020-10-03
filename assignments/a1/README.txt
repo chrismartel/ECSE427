@@ -15,6 +15,9 @@ To run backend:
 To run a frontend:
 	 ./frontend <host_ip> <host_port>
 
+to terminate a frontend: "exit" command
+
+to terminate a frontend and backend: "shutdown" command
 
 Difficulties encountered:
 

@@ -21,7 +21,7 @@ int main(int argc, char *argv[])
   const char *sleep_cmd = "sleep";
   const char *fact_cmd = "factorial";
   const char *div_cmd = "divide";
-  const char *quit_cmd = "quit";
+  const char *exit_cmd = "exit";
   const char *sd_cmd = "shutdown";
 
   /* host ip */
@@ -297,16 +297,16 @@ int main(int argc, char *argv[])
                 }
               }
             }
-            // QUIT COMMAND
-            else if (strcmp(command, quit_cmd) == 0)
+            // EXIT COMMAND
+            else if (strcmp(command, exit_cmd) == 0)
             {
               if (nbargs != 1)
               {
-                sprintf(response, "Error: Command %cquit%c does not take any argument\n", '"', '"');
+                sprintf(response, "Error: Command %cexit%c does not take any argument\n", '"', '"');
               }
               else
               {
-                sprintf(response, "quit");
+                sprintf(response, "exit");
                 send_message(frontendfd, response, BUFSIZE);
                 close(socket);
                 close(sockfd);
@@ -366,7 +366,7 @@ int main(int argc, char *argv[])
 */
 int isCommandValid(char *operator)
 {
-  if ((strcmp(operator, "add") == 0) || (strcmp(operator, "shutdown") == 0) || (strcmp(operator, "quit") == 0) || (strcmp(operator, "multiply") == 0) || (strcmp(operator, "divide") == 0) || (strcmp(operator, "sleep") == 0) || (strcmp(operator, "factorial") == 0))
+  if ((strcmp(operator, "add") == 0) || (strcmp(operator, "shutdown") == 0) || (strcmp(operator, "exit") == 0) || (strcmp(operator, "multiply") == 0) || (strcmp(operator, "divide") == 0) || (strcmp(operator, "sleep") == 0) || (strcmp(operator, "factorial") == 0))
   {
     return 0;
   }

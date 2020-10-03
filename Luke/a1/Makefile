@@ -10,7 +10,7 @@ backend: backend.o a1_lib.o
 	gcc backend.o a1_lib.o -o backend
 
 frontend: frontend.o a1_lib.o
-	gcc frontend.o a1_lib.o -o backend
+	gcc frontend.o a1_lib.o -o frontend
 
 backend.o: backend.c a1_lib.h
 	gcc -c backend.c 
