@@ -102,7 +102,7 @@ uint64_t factorial(int x){
         return -2;
     }
     else{
-        int factor = 1;
+        uint64_t factor = 1;
         for(int i=x; i>=1; i--){
             factor = factor *i;
         }
@@ -187,7 +187,7 @@ int main(int argc, char *argv[]){
         fprintf(stderr, "Exit: The server failed to create.\n");
         return -1;
     }
-    printf("Server connection successful\n");
+    printf("Server listening on %s:%d\n", host, port);
 
     while(1){
 
@@ -342,13 +342,13 @@ int main(int argc, char *argv[]){
                                 send_message(clientfd,response,BUFSIZE);
                             }
                             else{
-                                int operand1 = atoi(first_argument);
+                                uint64_t operand1 = atoi(first_argument);
                                 if(((operand1 == 0)&&(strcmp(first_argument,"0")!=0))){
                                     sprintf(response, "Error: The arguments is not an integer.");
                                     send_message(clientfd,response,BUFSIZE);
                                 }
                                 else{
-                                    int operandfactorial = factorial(operand1);
+                                    uint64_t operandfactorial = factorial(operand1);
                                     if(operandfactorial == -1){
                                         sprintf(response, "Error: The operand cannot be negative.\n");
                                     }
@@ -356,7 +356,7 @@ int main(int argc, char *argv[]){
                                         sprintf(response, "Error: The operand cannot be greater than 20.\n");
                                     }
                                     else{
-                                        sprintf(response, "%d", operandfactorial);
+                                        sprintf(response, "%ld", operandfactorial);
                                     }
                                     send_message(clientfd,response,BUFSIZE);
                                 }

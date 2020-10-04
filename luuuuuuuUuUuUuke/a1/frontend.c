@@ -48,7 +48,7 @@ int main(int argc, char *argv[]){
         return -1;
     }
 
-    if(strcmp(trim(server_msg),"unavailable")==0){
+    if(strcmp(server_msg,"unavailable")==0){
         fflush(stdout);
         fprintf(stderr, "Error: Server is unavailable right now.\n");
         return -1;
@@ -97,10 +97,10 @@ int main(int argc, char *argv[]){
             break;
         }
 
-        if(strcmp(trim(server_msg),"Sleeping") ==0){
+        if(strcmp(server_msg,"Sleeping") ==0){
             fflush(stdout);
         }
-        else if(strcmp(trim(server_msg),"Shuttingdown")==0||strcmp(trim(server_msg),"exiting")==0){
+        else if(strcmp(server_msg,"Shuttingdown")==0||strcmp(server_msg,"exiting")==0){
             fflush(stdout);
             return 0;
         }
