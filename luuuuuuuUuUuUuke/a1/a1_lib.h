@@ -31,7 +31,7 @@
 #define BUFSIZE    1024
 #define CLIENTMAX    5
 #define COMMANDLENGTH    12
-#define ARGUMENTLENGTH    24
+#define ARGUMENTLENGTH    64
 #define NUMBEROFARGUMENTS    2
 #define SHMSEGSIZE    4
 #define PIDLENGTH    8
