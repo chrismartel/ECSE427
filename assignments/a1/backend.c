@@ -1,19 +1,28 @@
 #include "a1_lib.h"
 
+/* define command struct */
+struct Message
+{
+  char command[COMMANDSIZE];
+  char parameters[NBPARAMS][PARAMSIZE];
+  int nbargs;
+};
+
+/* define process struct */
+struct Process
+{
+  pid_t process_id;
+  int available;
+};
+
+/* declare functions*/
+int findNextProcessAvailable(struct Process *p);
 int isCommandValid(char *command);
 int isOperatorValid(char *operator);
 void *create_shared_memory(size_t size);
 
 int main(int argc, char *argv[])
 {
-
-  /* define command struct */
-  struct Message
-  {
-    char command[COMMANDSIZE];
-    char parameters[NBPARAMS][PARAMSIZE];
-    int nbargs;
-  };
 
   /* list of valid commands */
   const char *add_cmd = "add";
@@ -39,15 +48,27 @@ int main(int argc, char *argv[])
 
   // SETUP SHARED MEMORY SEGMENTS //
 
-  /* children process ids*/
-  pid_t *children_pids_shm = create_shared_memory(PIDSIZE * MAX_NB_CLIENTS);
+  /* keep track of if server is available (0) or not (1) */
+  int *serverAvailable = create_shared_memory(INTSIZE);
+  *serverAvailable = 0;
 
-  /* snumber of children processes currently running */
-  int *nclients_shm = create_shared_memory(INTSIZE);
+  /* keep track of next process index available*/
+  int *nextProcessAvailable = create_shared_memory(INTSIZE);
 
-  /* initialize number of clients currently running */
-  int start_index = 0;
-  memcpy(nclients_shm, &start_index, INTSIZE);
+  /* children process structures*/
+  struct Process *children_shm = create_shared_memory(sizeof(struct Process) * MAX_NB_CLIENTS);
+
+  /* initialize parameters of process structures*/
+  for (int i = 0; i < MAX_NB_CLIENTS; i++)
+  {
+    struct Process *p = children_shm;
+    for (int j = 0; j < i; j++)
+    {
+      p++;
+    }
+    p->available = 0;
+    p->process_id = 0;
+  }
 
   // SETUP SERVER SOCKET //
 
@@ -83,7 +104,7 @@ int main(int argc, char *argv[])
     // CHECK NUMBER OF CLIENTS RUNNING ON SERVER* //
 
     /*server unavailable*/
-    if (*nclients_shm >= MAX_NB_CLIENTS)
+    if (*serverAvailable == 1)
     {
       /* indicate to frontend that server is not available*/
       sprintf(response, "busy");
@@ -97,9 +118,6 @@ int main(int argc, char *argv[])
       sprintf(response, "available");
       send_message(frontendfd, response, BUFSIZE);
 
-      /* increment number of clients running on server*/
-      *nclients_shm = *nclients_shm + 1;
-
       /* fork a child process */
       nextpid = fork();
 
@@ -112,8 +130,37 @@ int main(int argc, char *argv[])
       // EXECUTION OF CHILD PROCESS //
       else if (nextpid == 0)
       {
-        /* store child id in shared memory segment*/
-        memcpy((children_pids_shm + (*(nclients_shm)*PIDSIZE)), &nextpid, PIDSIZE);
+        /* get current child process id */
+        nextpid = getpid();
+
+        /* set pointer to shared memory process structures*/
+        struct Process *p = (struct Process *)children_shm;
+
+        /* point to next available process structure*/
+        for (int i = 0; i < *nextProcessAvailable; i++)
+        {
+          p++;
+        }
+        /* set params of process structure*/
+        p->process_id = nextpid;
+        p->available = 1;
+
+        /* reset process structures pointer*/
+        p = (struct Process *)children_shm;
+
+        /* update next available process index */
+        *nextProcessAvailable = findNextProcessAvailable(p);
+
+        /* update server status*/
+        if (*nextProcessAvailable == -1)
+        {
+          *serverAvailable = 1;
+        }
+        else
+        {
+          *serverAvailable = 0;
+        }
+
         // RECEIVE FRONTEND MESSAGES //
         while (1)
         {
@@ -313,12 +360,44 @@ int main(int argc, char *argv[])
               }
               else
               {
+                /* reset pointer to first process struct*/
+                p = (struct Process *)children_shm;
+
+                /* iterate through all children processes struct*/
+                for (int i = 0; i < MAX_NB_CLIENTS; i++)
+                {
+                  /* if struct of current process*/
+                  if (p->process_id == getpid())
+                  {
+                    /* struct is now available */
+                    p->available = 0;
+
+                    /* process id vacant */
+                    p->process_id = 0;
+                    break;
+                  }
+                  p++;
+                }
+
+                /* reset pointer to first process struct*/
+                p = (struct Process *)children_shm;
+
+                /* find next available process index */
+                *nextProcessAvailable = findNextProcessAvailable(p);
+
+                /* update server status*/
+                if (*nextProcessAvailable == -1)
+                {
+                  *serverAvailable = 1;
+                }
+                else
+                {
+                  *serverAvailable = 0;
+                }
                 sprintf(response, "exit");
                 send_message(frontendfd, response, BUFSIZE);
                 close(socket);
                 close(sockfd);
-                /* decrement number of running clients */
-                *nclients_shm = *nclients_shm - 1;
                 exit(0);
               }
             }
@@ -335,15 +414,20 @@ int main(int argc, char *argv[])
                 send_message(frontendfd, response, BUFSIZE);
                 close(socket);
                 close(sockfd);
+
                 /* kill all children processes*/
-                for (int i = 0; i < *nclients_shm; i++)
+
+                /* reset pointer to first process struct*/
+                p = (struct Process *)children_shm;
+
+                for (int i = 0; i < MAX_NB_CLIENTS; i++)
                 {
-                  int status;
-                  pid_t cid = *(children_pids_shm + i * PIDSIZE);
+                  pid_t cid = p->process_id;
                   if (cid != getpid())
                   {
                     kill(cid, SIGTERM);
                   }
+                  p++;
                 }
                 /* kill parent process*/
                 kill(getppid(), SIGTERM);
@@ -395,4 +479,34 @@ void *create_shared_memory(size_t size)
   int protection = PROT_READ | PROT_WRITE;
   int visibility = MAP_SHARED | MAP_ANONYMOUS;
   return mmap(NULL, size, protection, visibility, -1, 0);
+}
+
+/**
+ * Method finding the next available process index through a list of process structure
+ * @params:
+ *  children:   pointer to beginning of array of Process structures
+ * 
+ * @return:     the index of the next available process structure. If no process available return -1
+*/
+int findNextProcessAvailable(struct Process *children)
+{
+  /* iterate through all process structures*/
+  for (int i = 0; i < MAX_NB_CLIENTS; i++)
+  {
+    /* reset pointer */
+    struct Process *p = children;
+
+    for (int j = 0; j < i; j++)
+    {
+      p++;
+    }
+    int av = p->available;
+    /* return index of available process */
+    if (av == 0)
+    {
+      return i;
+    }
+  }
+  /* no process available */
+  return -1;
 }
