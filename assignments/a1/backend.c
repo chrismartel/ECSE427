@@ -280,7 +280,7 @@ int main(int argc, char *argv[])
               }
               else
               {
-                int int1 = atoi(op1);
+                uint64_t int1 = atoi(op1);
                 // check if argument is integer
                 if (int1 == 0 && strcmp(op1, "0") != 0)
                 {
@@ -288,7 +288,7 @@ int main(int argc, char *argv[])
                 }
                 else
                 {
-                  int ifac = factorial(int1);
+                  uint64_t ifac = factorial(int1);
                   if (ifac == -1)
                   {
                     sprintf(response, "Error: factorial argument must be greater than 0");
@@ -299,7 +299,7 @@ int main(int argc, char *argv[])
                   }
                   else
                   {
-                    sprintf(response, "%d", ifac);
+                    sprintf(response, "%ld", ifac);
                   }
                 }
               }

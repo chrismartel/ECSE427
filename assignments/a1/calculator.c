@@ -51,7 +51,7 @@ uint64_t factorial(int x)
     }
     else
     {
-        int result = 1;
+        uint64_t result = 1;
         for (int i = x; i >= 1; i--)
         {
             result = result * i;
