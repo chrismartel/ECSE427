@@ -3,16 +3,23 @@
 /* define command struct */
 struct Message
 {
+  /* command type*/
   char command[COMMANDSIZE];
+  /* operands parameters */
   char parameters[NBPARAMS][PARAMSIZE];
+  /* number of params in message */
   int nbargs;
 };
 
 /* define process struct */
 struct Process
 {
+  /* process id */
   pid_t process_id;
+  /* availability of process */
   int available;
+  /* status of process */
+  int running;
 };
 
 /* declare functions*/
@@ -68,6 +75,7 @@ int main(int argc, char *argv[])
     }
     p->available = 0;
     p->process_id = 0;
+    p->running = 0;
   }
 
   // SETUP SERVER SOCKET //
@@ -136,6 +144,9 @@ int main(int argc, char *argv[])
         /* set pointer to shared memory process structures*/
         struct Process *p = (struct Process *)children_shm;
 
+        /* set pointer to current shared memory process structure*/
+        struct Process *current_p = (struct Process *)children_shm;
+
         /* point to next available process structure*/
         for (int i = 0; i < *nextProcessAvailable; i++)
         {
@@ -144,6 +155,9 @@ int main(int argc, char *argv[])
         /* set params of process structure*/
         p->process_id = nextpid;
         p->available = 1;
+        
+        /* set current process pointer */
+        current_p = p;
 
         /* reset process structures pointer*/
         p = (struct Process *)children_shm;
@@ -174,6 +188,9 @@ int main(int argc, char *argv[])
             printf("error in receiving message...\n");
             break;
           }
+
+          /* set current process running status to 1 */
+          current_p->running = 1;
 
           /* convert message received into message struct */
           struct Message *msg_struct = (struct Message *)msg;
@@ -360,27 +377,10 @@ int main(int argc, char *argv[])
               }
               else
               {
-                /* reset pointer to first process struct*/
-                p = (struct Process *)children_shm;
-
-                /* iterate through all children processes struct*/
-                for (int i = 0; i < MAX_NB_CLIENTS; i++)
-                {
-                  /* if struct of current process*/
-                  if (p->process_id == getpid())
-                  {
-                    /* struct is now available */
-                    p->available = 0;
-
-                    /* process id vacant */
-                    p->process_id = 0;
-                    break;
-                  }
-                  p++;
-                }
-
-                /* reset pointer to first process struct*/
-                p = (struct Process *)children_shm;
+                /* current process struct is now available */
+                current_p->available =0;
+                /* current process id reset */
+                current_p->process_id = 0;
 
                 /* find next available process index */
                 *nextProcessAvailable = findNextProcessAvailable(p);
@@ -416,15 +416,16 @@ int main(int argc, char *argv[])
                 close(sockfd);
 
                 /* kill all children processes*/
-
-                /* reset pointer to first process struct*/
-                p = (struct Process *)children_shm;
-
                 for (int i = 0; i < MAX_NB_CLIENTS; i++)
                 {
                   pid_t cid = p->process_id;
                   if (cid != getpid())
                   {
+                    /* wait until process stops running */
+                    while(p->running == 1){
+                      /* wait for process to change state */
+                      waitpid(p->process_id,NULL,0);
+                    }
                     kill(cid, SIGTERM);
                   }
                   p++;
@@ -436,6 +437,9 @@ int main(int argc, char *argv[])
               }
             }
           }
+
+          /* set current process running status to 0 */
+          current_p->running = 0;
 
           send_message(frontendfd, response, BUFSIZE);
         }
