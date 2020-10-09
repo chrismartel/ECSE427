@@ -1,26 +1,23 @@
 #include "a1_lib.h"
 
 
-/** Trim functions **/
-char *ltrim(char *stringInput){
-  //Count whitespace
-  while (isspace(*stringInput)) stringInput++;
-  return stringInput;
-}
+/** Trim function **/
 
-char *rtrim(char *stringInput){
-  // Trim from other side
-  char *right;
-  int length = strlen(stringInput);
-  
-  right = stringInput + length;
-  while (isspace(*--right));
-  *(right + 1) = '\0';
-  return stringInput;
-}
+char *trim(char *s) {
+  char *original = s;
+  size_t len = 0;
 
-char *trim(char *stringInput){
-  return rtrim(ltrim(stringInput));
+  while (isspace((unsigned char) *s)) {
+    s++;
+  } 
+  if (*s) {
+    char *p = s;
+    while (*p) p++;
+    while (isspace((unsigned char) *(--p)));
+    p[1] = '\0';
+    len = (size_t) (p - s + 1);  
+  }
+  return (s == original) ? s : memmove(original, s, len + 1);
 }
 
 int main(int argc, char *argv[]){
@@ -91,7 +88,12 @@ int main(int argc, char *argv[]){
         // Fflush(sdtout) outputs
 
         // Exit frontend by fflush
-        if(strcmp(server_msg,"Shuttingdown")==0||strcmp(server_msg,"exiting")==0){
+        if(strcmp(server_msg,"exiting")==0){
+            fflush(stdout);
+            return 0;
+        }
+        // Shutdown
+        if(strcmp(server_msg,"Shuttingdown")==0){
             fflush(stdout);
             return 0;
         }
