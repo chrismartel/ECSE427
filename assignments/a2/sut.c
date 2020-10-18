@@ -12,12 +12,24 @@
     2. Implement ready queue of Task struct using queue wrapper
 */
 
-int main(int argc, char *argv[])
-{
-}
+typedef void (*sut_task_f)();
+
+struct queue task_ready_queue;
+
+typedef struct suts {
+    int id;
+    char *stack;
+    sut_task_f fct;
+    ucontext_t context;
+
+} sut;
 
 void sut_init()
 {
+    // create ready task queue
+    task_ready_queue = queue_create();
+    // initialize queue
+    queue_init(&task_ready_queue);
 }
 
 /**
@@ -45,6 +57,8 @@ void sut_yield()
 void sut_exit()
 {
 }
+
+void sut_shutdown(){}
 
 
 // IO PART

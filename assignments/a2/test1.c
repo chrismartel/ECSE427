@@ -7,6 +7,7 @@ void hello1() {
     printf("Hello world!, this is SUT-One \n");
     sut_yield();
   }
+  sut_exit();
 }
 
 void hello2() {
@@ -15,11 +16,12 @@ void hello2() {
     printf("Hello world!, this is SUT-Two \n");
     sut_yield();
   }
+  sut_exit();
 }
 
 int main() {
   sut_init();
   sut_create(hello1);
   sut_create(hello2);
-  sut_exit();
+  sut_shutdown();
 }
