@@ -9,6 +9,7 @@
 #include <stdio.h>
 
 typedef void (*sut_task_f)();
+typedef struct SUT sut;
 
 void sut_init();
 bool sut_create(sut_task_f fn);

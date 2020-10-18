@@ -1,6 +1,8 @@
 #include "sut.h"
 #include "queue.h"
 
+#define SS 1024 * 16;
+
 /* TODO: 
     
     1. Implement Task struct to store: 
@@ -14,22 +16,34 @@
 
 typedef void (*sut_task_f)();
 
-struct queue task_ready_queue;
+struct queue *task_ready_queue;
+ucontext_t *main_context;
+int *taskId;
 
-typedef struct suts {
+typedef struct sut_task
+{
     int id;
     char *stack;
     sut_task_f fct;
     ucontext_t context;
 
-} sut;
+} sut_task;
 
+/**
+ * Initialization of required data structures and variables
+ */
 void sut_init()
 {
-    // create ready task queue
-    task_ready_queue = queue_create();
-    // initialize queue
-    queue_init(&task_ready_queue);
+    // init ready task queue 
+    task_ready_queue = malloc(sizeof(struct queue));
+    *task_ready_queue = queue_create();
+    queue_init(task_ready_queue);
+
+    // init task id count 
+    taskId = malloc(sizeof(int));
+    *taskId = 0;
+
+    printf("Initialization successful\n");
 }
 
 /**
@@ -39,6 +53,17 @@ void sut_init()
  */
 bool sut_create(sut_task_f fn)
 {
+    // create and setup new task
+    /* new task */
+    struct sut_task *task = (struct sut_task *)malloc(sizeof(struct sut_task));
+    task->id = *taskId;
+    *taskId = *taskId + 1;
+    task->fct = fn;
+
+    // add task to queue 
+    queue_insert_tail(task_ready_queue, queue_new_node(task));
+    printf("Succesfully created task: %d\n", task->id);
+    return true;
 }
 
 /**
@@ -48,6 +73,17 @@ bool sut_create(sut_task_f fn)
 */
 void sut_yield()
 {
+    /* currently running task */
+    struct sut_task *cur_task = queue_pop_head(task_ready_queue)->data;
+    // clone current context 
+    getcontext(&(cur_task->context));
+    cur_task->context.uc_stack.ss_sp = cur_task->stack;
+    cur_task->context.uc_stack.ss_size = SS;
+    cur_task->context.uc_link = main_context;
+    // add removed task back to queue 
+    queue_insert_tail(task_ready_queue, queue_new_node(cur_task));
+    // swap back to main context
+    swapcontext(&(cur_task->context),main_context);
 }
 
 /**
@@ -58,8 +94,16 @@ void sut_exit()
 {
 }
 
-void sut_shutdown(){}
+/**
+* Terminates program execution. Empty the task queue
+*/
+void sut_shutdown()
+{
 
+    /* init main context */
+    main_context = malloc(sizeof(ucontext_t));
+    getcontext(main_context);
+}
 
 // IO PART
 
