@@ -1,47 +1,32 @@
 #include "sut.h"
 #include "queue.h"
 
-#define SS 1024 * 16;
-
-/* TODO: 
-    
-    1. Implement Task struct to store: 
-            - int thread id
-            -  ucontext_t thread context
-            -  char* thread stack pointer
-            -  void * thread function
-
-    2. Implement ready queue of Task struct using queue wrapper
-*/
+sut_task tasks[MAXTHREADS];
+ucontext_t parent;
+int numthreads;
+int curthread;
 
 typedef void (*sut_task_f)();
 
+struct queue_entry;
+
 struct queue *task_ready_queue;
-ucontext_t *main_context;
-int *taskId;
 
-typedef struct sut_task
-{
-    int id;
-    char *stack;
-    sut_task_f fct;
-    ucontext_t context;
-
-} sut_task;
+struct queue_entry *head;
+struct sut_task *head_task;
 
 /**
  * Initialization of required data structures and variables
  */
 void sut_init()
 {
-    // init ready task queue 
+    // init ready task queue
     task_ready_queue = malloc(sizeof(struct queue));
     *task_ready_queue = queue_create();
     queue_init(task_ready_queue);
 
-    // init task id count 
-    taskId = malloc(sizeof(int));
-    *taskId = 0;
+    numthreads = 0;
+    curthread = 0;
 
     printf("Initialization successful\n");
 }
@@ -53,17 +38,28 @@ void sut_init()
  */
 bool sut_create(sut_task_f fn)
 {
+    if (numthreads >= MAXTHREADS)
+    {
+        printf("Error: Maximum thread limit reached... creation failed! \n");
+        return false;
+    }
     // create and setup new task
     /* new task */
-    struct sut_task *task = (struct sut_task *)malloc(sizeof(struct sut_task));
-    task->id = *taskId;
-    *taskId = *taskId + 1;
+    struct sut_task *task = &(tasks[numthreads]);
+    getcontext(&(task->context));
+    task->id = numthreads;
+    task->stack = (char *)malloc(STACKSIZE);
+    task->context.uc_stack.ss_sp = task->stack;
+    task->context.uc_stack.ss_size = STACKSIZE;
+    task->context.uc_link = 0;
     task->fct = fn;
 
-    // add task to queue 
-    queue_insert_tail(task_ready_queue, queue_new_node(task));
+    makecontext(&(task->context),fn,0);
+    numthreads ++;
+    // add task to queue
+    //queue_insert_tail(task_ready_queue, queue_new_node(task));
     printf("Succesfully created task: %d\n", task->id);
-    return true;
+    //return true;
 }
 
 /**
@@ -75,15 +71,15 @@ void sut_yield()
 {
     /* currently running task */
     struct sut_task *cur_task = queue_pop_head(task_ready_queue)->data;
-    // clone current context 
+    // clone current context
     getcontext(&(cur_task->context));
     cur_task->context.uc_stack.ss_sp = cur_task->stack;
-    cur_task->context.uc_stack.ss_size = SS;
-    cur_task->context.uc_link = main_context;
-    // add removed task back to queue 
+    cur_task->context.uc_stack.ss_size = STACKSIZE;
+    cur_task->context.uc_link = &parent;
+    // add removed task back to queue
     queue_insert_tail(task_ready_queue, queue_new_node(cur_task));
     // swap back to main context
-    swapcontext(&(cur_task->context),main_context);
+    swapcontext(&(cur_task->context), &parent);
 }
 
 /**
@@ -92,6 +88,15 @@ void sut_yield()
  */
 void sut_exit()
 {
+    /* currently running task */
+    struct sut_task *cur_task = queue_pop_head(task_ready_queue)->data;
+    // clone current context
+    getcontext(&(cur_task->context));
+    cur_task->context.uc_stack.ss_sp = cur_task->stack;
+    cur_task->context.uc_stack.ss_size = STACKSIZE;
+    cur_task->context.uc_link = &parent;
+    // swap back to main context
+    swapcontext(&(cur_task->context), &parent);
 }
 
 /**
@@ -100,9 +105,27 @@ void sut_exit()
 void sut_shutdown()
 {
 
-    /* init main context */
-    main_context = malloc(sizeof(ucontext_t));
-    getcontext(main_context);
+    head = malloc(sizeof(struct queue_entry));
+    head_task = malloc(sizeof(struct sut_task));
+
+    while (true)
+    {
+        // update main context
+
+        head = queue_peek_front(task_ready_queue);
+
+        if (head != NULL)
+        {
+            head_task = head->data;
+            // run head task context
+            swapcontext(&parent, &(head_task->context));
+        }
+        else
+        {
+            printf("Empty task queue\n");
+            break;
+        }
+    }
 }
 
 // IO PART

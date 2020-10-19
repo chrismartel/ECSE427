@@ -7,9 +7,19 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
+#define STACKSIZE 1024 * 64
+#define MAXTHREADS 15
 
 typedef void (*sut_task_f)();
-typedef struct SUT sut;
+
+typedef struct sut_task
+{
+    int id;
+    char *stack;
+    sut_task_f fct;
+    ucontext_t context;
+
+} sut_task;
 
 void sut_init();
 bool sut_create(sut_task_f fn);
