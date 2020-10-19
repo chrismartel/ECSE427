@@ -39,6 +39,9 @@ bool shutdown;
 /* computation execution thread method declaration*/
 void *c_exec();
 
+/* wait queue*/
+struct queue *wait_queue;
+
 /////////////////// MAIN EXECUTION FUNCTIONS ///////////////////
 
 /**
@@ -46,10 +49,14 @@ void *c_exec();
  */
 void sut_init()
 {
-    // init ready task queue
+    // init queues
     task_ready_queue = malloc(sizeof(struct queue));
     *task_ready_queue = queue_create();
     queue_init(task_ready_queue);
+
+    wait_queue = malloc(sizeof(struct queue));
+    *wait_queue = queue_create();
+    queue_init(wait_queue);
 
     // init user thread count variables
     numthreads = 0;
@@ -57,7 +64,7 @@ void sut_init()
 
     shutdown = false;
 
-    pthread_create(&c_exec_handle, NULL, c_exec,&mutex);
+    pthread_create(&c_exec_handle, NULL, c_exec, NULL);
     printf("Initialization successful\n");
 }
 
@@ -98,8 +105,13 @@ bool sut_create(sut_task_f fn)
     makecontext(&(task->context), fn, 0);
     numthreads++;
     // add task to queue
+
+    /* BEGININNING OF CS */
+    pthread_mutex_lock(&mutex);
     queue_insert_tail(task_ready_queue, queue_new_node(task));
     printf("Succesfully created task: %d\n", task->id);
+    /* END OF CS */
+    pthread_mutex_unlock(&mutex);
     return true;
 }
 
@@ -110,15 +122,25 @@ bool sut_create(sut_task_f fn)
 */
 void sut_yield()
 {
+    /* BEGININNING OF CS */
+    pthread_mutex_lock(&mutex);
     /* currently running task */
     struct sut_task *cur_task = queue_pop_head(task_ready_queue)->data;
+
+    /* END OF CS */
+    pthread_mutex_unlock(&mutex);
+
     // clone current context
     getcontext(&(cur_task->context));
     cur_task->context.uc_stack.ss_sp = cur_task->stack;
     cur_task->context.uc_stack.ss_size = STACKSIZE;
     cur_task->context.uc_link = &main_context;
+
     // add removed task back to queue
     queue_insert_tail(task_ready_queue, queue_new_node(cur_task));
+    /* END OF CS */
+    pthread_mutex_unlock(&mutex);
+
     // swap back to main context
     swapcontext(&(cur_task->context), &main_context);
 }
@@ -129,8 +151,13 @@ void sut_yield()
  */
 void sut_exit()
 {
+    /* BEGININNING OF CS */
+    pthread_mutex_lock(&mutex);
     /* currently running task */
     struct sut_task *cur_task = queue_pop_head(task_ready_queue)->data;
+    /* END OF CS */
+    pthread_mutex_unlock(&mutex);
+
     // clone current context
     getcontext(&(cur_task->context));
     cur_task->context.uc_stack.ss_sp = cur_task->stack;
@@ -160,9 +187,9 @@ char *sut_read()
 
 /////////////////// KERNEL LEVEL THREAD FUNCTIONS ///////////////////
 
-void *c_exec(void *arg)
+void *c_exec()
 {
-    pthread_mutex_t *mutex = arg;
+
     /* head node of the queue */
     struct queue_entry *head;
     head = malloc(sizeof(struct queue_entry));
@@ -174,10 +201,13 @@ void *c_exec(void *arg)
     while (true)
     {
         /* BEGININNING OF CS */
-        pthread_mutex_lock(mutex);
+        pthread_mutex_lock(&mutex);
 
         // queue check
         head = queue_peek_front(task_ready_queue);
+
+        /* END OF CS*/
+        pthread_mutex_unlock(&mutex);
 
         // launch a task
         if (head != NULL)
@@ -200,9 +230,5 @@ void *c_exec(void *arg)
                 printf("Waiting...\n");
             }
         }
-        pthread_mutex_unlock(mutex);
-
-
-        /* END OF CS*/
     }
 }
