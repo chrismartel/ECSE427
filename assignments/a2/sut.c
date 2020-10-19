@@ -1,19 +1,45 @@
 #include "sut.h"
 #include "queue.h"
 
-sut_task tasks[MAXTHREADS];
-ucontext_t main_context;
-int numthreads;
-int curthread;
+/////////////////// USER LEVEL THREADS DATA ///////////////////
 
-/* function pointer */
+/* function pointer declaration*/
 typedef void (*sut_task_f)();
 
 /* queue entry struct declaration*/
 struct queue_entry;
 
+/* array of task struct */
+sut_task tasks[MAXTHREADS];
+
+/* main context/ parent context */
+ucontext_t main_context;
+
+/* current number of user-level threads*/
+int numthreads;
+
+/* current thread pointer tool*/
+int curthread;
+
 /* ready tasks queue*/
 struct queue *task_ready_queue;
+
+/////////////////// KERNEL LEVEL THREADS DATA ///////////////////
+
+/* mutex lock */
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
+/* kernel threads handles */
+pthread_t c_exec_handle;
+pthread_t i_exec_handle;
+
+/* execution flag */
+bool shutdown;
+
+/* computation execution thread method declaration*/
+void *c_exec();
+
+/////////////////// MAIN EXECUTION FUNCTIONS ///////////////////
 
 /**
  * Initialization of required data structures and variables
@@ -25,12 +51,26 @@ void sut_init()
     *task_ready_queue = queue_create();
     queue_init(task_ready_queue);
 
-    // variables
+    // init user thread count variables
     numthreads = 0;
     curthread = 0;
 
+    shutdown = false;
+
+    pthread_create(&c_exec_handle, NULL, c_exec,&mutex);
     printf("Initialization successful\n");
 }
+
+/**
+* Terminates program execution. Empty the task queue
+*/
+void sut_shutdown()
+{
+    shutdown = true;
+    pthread_join(c_exec_handle, NULL);
+}
+
+/////////////////// USER LEVEL THREAD LIBRARY FUNCTIONS ///////////////////
 
 /**
  * Create a Task struct and add it to the END of the task ready queue.
@@ -100,41 +140,7 @@ void sut_exit()
     swapcontext(&(cur_task->context), &main_context);
 }
 
-/**
-* Terminates program execution. Empty the task queue
-*/
-void sut_shutdown()
-{
-    /* head node of the queue */
-    struct queue_entry *head;
-    head = malloc(sizeof(struct queue_entry));
-
-    /* head thread task of the queue*/
-    struct sut_task *head_task;
-    head_task = malloc(sizeof(struct sut_task));
-
-    while (true)
-    {
-        // check if task left in the ready queue
-        head = queue_peek_front(task_ready_queue);
-        // execute task
-        if (head != NULL)
-        {
-            // set head task
-            head_task = head->data;
-            // run head task context, save current context state in main_context context
-            swapcontext(&main_context, &(head_task->context));
-        }
-        // no tasks left
-        else
-        {
-            printf("Empty task queue\n");
-            break;
-        }
-    }
-}
-
-// IO PART
+//TODO: IO PART
 
 void sut_open(char *dest, int port)
 {
@@ -150,4 +156,53 @@ void sut_close()
 
 char *sut_read()
 {
+}
+
+/////////////////// KERNEL LEVEL THREAD FUNCTIONS ///////////////////
+
+void *c_exec(void *arg)
+{
+    pthread_mutex_t *mutex = arg;
+    /* head node of the queue */
+    struct queue_entry *head;
+    head = malloc(sizeof(struct queue_entry));
+
+    /* head thread task of the queue*/
+    struct sut_task *head_task;
+    head_task = malloc(sizeof(struct sut_task));
+
+    while (true)
+    {
+        /* BEGININNING OF CS */
+        pthread_mutex_lock(mutex);
+
+        // queue check
+        head = queue_peek_front(task_ready_queue);
+
+        // launch a task
+        if (head != NULL)
+        {
+            head_task = head->data;
+            swapcontext(&main_context, &(head_task->context));
+        }
+        // no tasks left
+        else
+        {
+            printf("Empty task queue\n");
+            if (shutdown)
+            {
+                printf("Shutting down...\n");
+                break;
+            }
+            else
+            {
+                usleep(1000 * 1000);
+                printf("Waiting...\n");
+            }
+        }
+        pthread_mutex_unlock(mutex);
+
+
+        /* END OF CS*/
+    }
 }
