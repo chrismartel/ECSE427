@@ -29,6 +29,9 @@ struct queue *task_ready_queue;
 /* task ready queue mutex lock */
 pthread_mutex_t trq_mutex = PTHREAD_MUTEX_INITIALIZER;
 
+/* IO wait queue mutex lock */
+pthread_mutex_t io_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 /* kernel threads handles */
 pthread_t c_exec_handle;
 pthread_t i_exec_handle;
@@ -230,5 +233,13 @@ void *c_exec()
                 printf("Waiting...\n");
             }
         }
+        usleep(CEXECSLEEP);
     }
 }
+
+void *i_exec(){
+
+
+}
+
+/////////////////// IO CONNECTION FUNCTIONS ///////////////////
