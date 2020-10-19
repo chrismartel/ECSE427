@@ -2,18 +2,18 @@
 #include "queue.h"
 
 sut_task tasks[MAXTHREADS];
-ucontext_t parent;
+ucontext_t main_context;
 int numthreads;
 int curthread;
 
+/* function pointer */
 typedef void (*sut_task_f)();
 
+/* queue entry struct declaration*/
 struct queue_entry;
 
+/* ready tasks queue*/
 struct queue *task_ready_queue;
-
-struct queue_entry *head;
-struct sut_task *head_task;
 
 /**
  * Initialization of required data structures and variables
@@ -25,6 +25,7 @@ void sut_init()
     *task_ready_queue = queue_create();
     queue_init(task_ready_queue);
 
+    // variables
     numthreads = 0;
     curthread = 0;
 
@@ -53,13 +54,13 @@ bool sut_create(sut_task_f fn)
     task->context.uc_stack.ss_size = STACKSIZE;
     task->context.uc_link = 0;
     task->fct = fn;
-
-    makecontext(&(task->context),fn,0);
-    numthreads ++;
+    // create context for this task
+    makecontext(&(task->context), fn, 0);
+    numthreads++;
     // add task to queue
-    //queue_insert_tail(task_ready_queue, queue_new_node(task));
+    queue_insert_tail(task_ready_queue, queue_new_node(task));
     printf("Succesfully created task: %d\n", task->id);
-    //return true;
+    return true;
 }
 
 /**
@@ -75,11 +76,11 @@ void sut_yield()
     getcontext(&(cur_task->context));
     cur_task->context.uc_stack.ss_sp = cur_task->stack;
     cur_task->context.uc_stack.ss_size = STACKSIZE;
-    cur_task->context.uc_link = &parent;
+    cur_task->context.uc_link = &main_context;
     // add removed task back to queue
     queue_insert_tail(task_ready_queue, queue_new_node(cur_task));
     // swap back to main context
-    swapcontext(&(cur_task->context), &parent);
+    swapcontext(&(cur_task->context), &main_context);
 }
 
 /**
@@ -94,9 +95,9 @@ void sut_exit()
     getcontext(&(cur_task->context));
     cur_task->context.uc_stack.ss_sp = cur_task->stack;
     cur_task->context.uc_stack.ss_size = STACKSIZE;
-    cur_task->context.uc_link = &parent;
+    cur_task->context.uc_link = &main_context;
     // swap back to main context
-    swapcontext(&(cur_task->context), &parent);
+    swapcontext(&(cur_task->context), &main_context);
 }
 
 /**
@@ -104,22 +105,27 @@ void sut_exit()
 */
 void sut_shutdown()
 {
-
+    /* head node of the queue */
+    struct queue_entry *head;
     head = malloc(sizeof(struct queue_entry));
+
+    /* head thread task of the queue*/
+    struct sut_task *head_task;
     head_task = malloc(sizeof(struct sut_task));
 
     while (true)
     {
-        // update main context
-
+        // check if task left in the ready queue
         head = queue_peek_front(task_ready_queue);
-
+        // execute task
         if (head != NULL)
         {
+            // set head task
             head_task = head->data;
-            // run head task context
-            swapcontext(&parent, &(head_task->context));
+            // run head task context, save current context state in main_context context
+            swapcontext(&main_context, &(head_task->context));
         }
+        // no tasks left
         else
         {
             printf("Empty task queue\n");
