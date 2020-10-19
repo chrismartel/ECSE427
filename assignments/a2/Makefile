@@ -2,7 +2,7 @@
 
 all: tests tut
 
-sut.o: sut.c queue.h
+sut.o: sut.c queue.h a1_lib.h
 	gcc -c sut.c
 # test
 test1.o: test1.c 

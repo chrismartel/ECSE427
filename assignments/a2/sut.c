@@ -1,5 +1,6 @@
 #include "sut.h"
 #include "queue.h"
+#include "a1_lib.h"
 
 /////////////////// USER LEVEL THREADS DATA ///////////////////
 
@@ -37,7 +38,7 @@ pthread_t c_exec_handle;
 pthread_t i_exec_handle;
 
 /* execution flag */
-bool shutdown;
+bool sd;
 
 /* computation execution thread method declaration*/
 void *c_exec();
@@ -65,7 +66,7 @@ void sut_init()
     numthreads = 0;
     curthread = 0;
 
-    shutdown = false;
+    sd = false;
 
     pthread_create(&c_exec_handle, NULL, c_exec, NULL);
     printf("Initialization successful\n");
@@ -76,7 +77,7 @@ void sut_init()
 */
 void sut_shutdown()
 {
-    shutdown = true;
+    sd = true;
     pthread_join(c_exec_handle, NULL);
 }
 
@@ -222,7 +223,7 @@ void *c_exec()
         else
         {
             printf("Empty task queue\n");
-            if (shutdown)
+            if (sd)
             {
                 printf("Shutting down...\n");
                 break;

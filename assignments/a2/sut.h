@@ -12,6 +12,7 @@
 #define CEXECSLEEP 100 // microseconds
 #define MSGSIZE 10
 
+
 typedef void (*sut_task_f)();
 
 typedef struct sut_task
