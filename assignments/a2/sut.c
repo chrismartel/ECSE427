@@ -26,8 +26,8 @@ struct queue *task_ready_queue;
 
 /////////////////// KERNEL LEVEL THREADS DATA ///////////////////
 
-/* mutex lock */
-pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+/* task ready queue mutex lock */
+pthread_mutex_t trq_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /* kernel threads handles */
 pthread_t c_exec_handle;
@@ -107,11 +107,11 @@ bool sut_create(sut_task_f fn)
     // add task to queue
 
     /* BEGININNING OF CS */
-    pthread_mutex_lock(&mutex);
+    pthread_mutex_lock(&trq_mutex);
     queue_insert_tail(task_ready_queue, queue_new_node(task));
     printf("Succesfully created task: %d\n", task->id);
     /* END OF CS */
-    pthread_mutex_unlock(&mutex);
+    pthread_mutex_unlock(&trq_mutex);
     return true;
 }
 
@@ -123,12 +123,12 @@ bool sut_create(sut_task_f fn)
 void sut_yield()
 {
     /* BEGININNING OF CS */
-    pthread_mutex_lock(&mutex);
+    pthread_mutex_lock(&trq_mutex);
     /* currently running task */
     struct sut_task *cur_task = queue_pop_head(task_ready_queue)->data;
 
     /* END OF CS */
-    pthread_mutex_unlock(&mutex);
+    pthread_mutex_unlock(&trq_mutex);
 
     // clone current context
     getcontext(&(cur_task->context));
@@ -139,7 +139,7 @@ void sut_yield()
     // add removed task back to queue
     queue_insert_tail(task_ready_queue, queue_new_node(cur_task));
     /* END OF CS */
-    pthread_mutex_unlock(&mutex);
+    pthread_mutex_unlock(&trq_mutex);
 
     // swap back to main context
     swapcontext(&(cur_task->context), &main_context);
@@ -152,11 +152,11 @@ void sut_yield()
 void sut_exit()
 {
     /* BEGININNING OF CS */
-    pthread_mutex_lock(&mutex);
+    pthread_mutex_lock(&trq_mutex);
     /* currently running task */
     struct sut_task *cur_task = queue_pop_head(task_ready_queue)->data;
     /* END OF CS */
-    pthread_mutex_unlock(&mutex);
+    pthread_mutex_unlock(&trq_mutex);
 
     // clone current context
     getcontext(&(cur_task->context));
@@ -201,13 +201,13 @@ void *c_exec()
     while (true)
     {
         /* BEGININNING OF CS */
-        pthread_mutex_lock(&mutex);
+        pthread_mutex_lock(&trq_mutex);
 
         // queue check
         head = queue_peek_front(task_ready_queue);
 
         /* END OF CS*/
-        pthread_mutex_unlock(&mutex);
+        pthread_mutex_unlock(&trq_mutex);
 
         // launch a task
         if (head != NULL)
