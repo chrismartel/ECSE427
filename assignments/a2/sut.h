@@ -7,15 +7,12 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include "queue.h"
-#include "rpc.h"
-#include "mystringlib.h"
+
 
 #define STACKSIZE 1024 * 64
 #define MAXTHREADS 15
 #define THREADSLEEP 100 // microseconds
 #define CMDSIZE 10
-
 
 typedef void (*sut_task_f)();
 
@@ -46,6 +43,5 @@ void sut_open(char *dest, int port);
 void sut_write(char *buf, int size);
 void sut_close();
 char *sut_read();
-
 
 #endif

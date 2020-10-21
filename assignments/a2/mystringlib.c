@@ -1,5 +1,4 @@
-#include <ctype.h>
-#include <string.h>
+#include "mystringlib.h"
 
 // left trim
 char *ltrim(char *s)

@@ -1,4 +1,6 @@
-#include "ctype.h"
+#include <ctype.h>
+#include <string.h>
+
 /**
  * left trim of string s
  * @params:

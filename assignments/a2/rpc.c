@@ -1,7 +1,7 @@
 /**
  *  @author: Trung Vuong Thien
  *  @email: trung.vuongthien@mail.mcgill.ca
- *  @description: Implementation of the functions declared in a1_lib.h
+ *  @description: Implementation of the functions declared in rpc.h
  */
 
 #include "rpc.h"

@@ -1,4 +1,7 @@
 #include "sut.h"
+#include "queue.h"
+#include "rpc.h"
+#include "mystringlib.h"
 
 /////////////////// USER LEVEL THREADS DATA ///////////////////
 
@@ -412,25 +415,43 @@ void *i_exec()
             /* OPEN command */
             if (!strcmp(trim(cmd), "OPEN"))
             {
+                // connect to server
+                if (connect_to_server(host_ip, head_msg->port, &sockfd) < 0)
+                {
+                    fflush(stdout);
+                    fprintf(stderr, "Error connecting to server\n");
+                }
+                // set read destination buffer
+                read_buf = head_msg->buf;
             }
             /* CLOSE command */
             else if (!strcmp(trim(cmd), "CLOSE"))
             {
+                // close remote process connection
+                close(sockfd);
             }
             /* READ COMMAND */
             else if (!strcmp(trim(cmd), "READ"))
             {
+                /* receive server response*/
+                ssize_t byte_count = recv_message(sockfd, read_buf, sizeof(read_buf));
+                if (byte_count <= 0)
+                {
+                    fflush(stdout);
+                    fprintf(stderr, "Error in reading data from server...\n");
+                }
             }
             /* WRITE COMMAND */
             else if (!strcmp(trim(cmd), "WRITE"))
             {
+                /* send data to server*/
+                send_message(sockfd, head_msg->buf, head_msg->size);
             }
             /* INVALID COMMAND */
             else
             {
                 printf("Error: invalid command in IO message queue\n");
             }
-
         }
         // no tasks left
         else

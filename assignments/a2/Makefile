@@ -2,10 +2,10 @@
 
 all: tests tut
 
-sut.o: sut.c queue.h rpc.h
+sut.o: sut.c 
 	gcc -c  sut.c
 
-rpc.o: rpc.c 
+rpc.o: rpc.c
 	gcc -c rpc.c
 
 mystringlib.o: mystringlib.c
@@ -54,4 +54,4 @@ pthreads: pthreads.c
 tut: ult pthreads
 
 clean:
-	rm *.o test1 test2 test3 ult pthreads
+	rm *.o test1 test2 test3 test4 test5 ult pthreads
