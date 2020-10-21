@@ -4,7 +4,7 @@
  *  @description: Implementation of the functions declared in a1_lib.h
  */
 
-#include "a1_lib.h"
+#include "rpc.h"
 
 int create_server(const char *host, uint16_t port, int *sockfd)
 {

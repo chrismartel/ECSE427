@@ -2,8 +2,12 @@
 
 all: tests tut
 
-sut.o: sut.c queue.h a1_lib.h
-	gcc -c sut.c
+sut.o: sut.c queue.h rpc.h
+	gcc -c  sut.c
+
+rpc.o: rpc.c 
+	gcc -c rpc.c
+
 # test
 test1.o: test1.c 
 	gcc -c test1.c
@@ -20,20 +24,20 @@ test4.o: test4.c
 test5.o: test5.c
 	gcc -c test5.c	
 
-test1: test1.o sut.o
-	gcc test1.o sut.o -o test1 -lpthread
+test1: test1.o sut.o rpc.o
+	gcc test1.o sut.o rpc.o -o test1 -lpthread
 
-test2: test2.o sut.o
-	gcc test2.o sut.o -o test2 -lpthread
+test2: test2.o sut.o rpc.o
+	gcc test2.o sut.o rpc.o -o test2 -lpthread
 
-test3: test3.o sut.o
-	gcc test3.o sut.o -o test3 -lpthread
+test3: test3.o sut.o rpc.o
+	gcc test3.o sut.o rpc.o -o test3 -lpthread
 
-test4: test4.o sut.o
-	gcc test4.o sut.o -o test4 -lpthread
+test4: test4.o sut.o rpc.o
+	gcc test4.o sut.o rpc.o -o test4 -lpthread
 
-test5: test5.o sut.o
-	gcc test5.o sut.o -o test5 -lpthread
+test5: test5.o sut.o rpc.o
+	gcc test5.o sut.o rpc.o -o test5 -lpthread
 
 tests: test1 test2 test3 test4 test5
 

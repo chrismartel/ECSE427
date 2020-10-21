@@ -10,7 +10,7 @@
 #define STACKSIZE 1024 * 64
 #define MAXTHREADS 15
 #define CEXECSLEEP 100 // microseconds
-#define MSGSIZE 10
+#define CMDSIZE 10
 
 
 typedef void (*sut_task_f)();
@@ -24,13 +24,13 @@ typedef struct sut_task
 
 } sut_task;
 
-typedef struct io_message
+typedef struct io_msg
 {
-    int msg_id;
-    char msg_type[MSGSIZE];
+    char cmd[CMDSIZE];
     int port;
-    char *destination;
-} io_message;
+    int size;
+    char *buf;
+} io_msg;
 
 void sut_init();
 bool sut_create(sut_task_f fn);

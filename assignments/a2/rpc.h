@@ -4,8 +4,8 @@
  *  @description: Header file for socket wrapper functions
  */
 
-#ifndef A1_LIB_
-#define A1_LIB_
+#ifndef RPC
+#define RPC
 
 #include <errno.h>
 #include <stdbool.h>
@@ -89,4 +89,4 @@ ssize_t send_message(int sockfd, const char *buf, size_t len);
  */
 ssize_t recv_message(int sockfd, char *buf, size_t len);
 
-#endif // A1_LIB_
+#endif // RPC

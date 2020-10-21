@@ -1,6 +1,6 @@
 #include "sut.h"
 #include "queue.h"
-#include "a1_lib.h"
+#include "rpc.h"
 
 /////////////////// USER LEVEL THREADS DATA ///////////////////
 
@@ -43,8 +43,25 @@ bool sd;
 /* computation execution thread method declaration*/
 void *c_exec();
 
-/* wait queue*/
-struct queue *wait_queue;
+/* IO execution thread method declaration*/
+void *i_exec();
+
+/////////////////// IO DATA ///////////////////
+
+/* IO wait queue*/
+struct queue *io_queue;
+
+/* client socket fd */
+int sockfd;
+
+/* host ip address */
+const char *host_ip = "127.0.0.0";
+
+/* Read IO buffer pointer */
+char *read_buf;
+
+/* IO message struct */
+struct io_msg;
 
 /////////////////// MAIN EXECUTION FUNCTIONS ///////////////////
 
@@ -58,9 +75,9 @@ void sut_init()
     *task_ready_queue = queue_create();
     queue_init(task_ready_queue);
 
-    wait_queue = malloc(sizeof(struct queue));
-    *wait_queue = queue_create();
-    queue_init(wait_queue);
+    io_queue = malloc(sizeof(struct queue));
+    *io_queue = queue_create();
+    queue_init(io_queue);
 
     // init user thread count variables
     numthreads = 0;
@@ -78,6 +95,9 @@ void sut_init()
 void sut_shutdown()
 {
     sd = true;
+    // wait for IO queue to finish processing first
+    pthread_join(i_exec_handle, NULL);
+    // wait for computation queue to finish last
     pthread_join(c_exec_handle, NULL);
 }
 
@@ -171,22 +191,78 @@ void sut_exit()
     swapcontext(&(cur_task->context), &main_context);
 }
 
-//TODO: IO PART
 
+
+/**
+ * Creates an OPEN task and enqueues it in the IO wait queue
+ * @param dest: destination buffer to read data from
+ * @param port: port to establish remote process connection
+ */
 void sut_open(char *dest, int port)
 {
+    struct io_msg msg;
+    strncpy(msg.cmd, "OPEN", CMDSIZE);
+    msg.buf = dest;
+    msg.port = port;
+
+    /* BEGININNING OF CS */
+    pthread_mutex_lock(&io_mutex);
+    queue_insert_tail(io_queue, queue_new_node(&msg));
+    printf("Succesfully created IO task\n");
+    /* END OF CS */
+    pthread_mutex_unlock(&io_mutex);
 }
 
+/**
+ * Creates a WRITE task and enqueues it in the IO wait queue
+ * @param buf: pointer to data to send to the remote process
+ * @param size: size of data to send to remote process
+ */
 void sut_write(char *buf, int size)
 {
+    struct io_msg msg;
+    strncpy(msg.cmd, "WRITE", CMDSIZE);
+    msg.buf = buf;
+    msg.size = size;
+
+    /* BEGININNING OF CS */
+    pthread_mutex_lock(&io_mutex);
+    queue_insert_tail(io_queue, queue_new_node(&msg));
+    printf("Succesfully created IO task\n");
+    /* END OF CS */
+    pthread_mutex_unlock(&io_mutex);
 }
 
+/**
+ * Creates a CLOSE task and enqueues it in the IO wait queue.
+ */
 void sut_close()
 {
+    struct io_msg msg;
+    strncpy(msg.cmd, "CLOSE", CMDSIZE);
+
+    /* BEGININNING OF CS */
+    pthread_mutex_lock(&io_mutex);
+    queue_insert_tail(io_queue, queue_new_node(&msg));
+    printf("Succesfully created IO task\n");
+    /* END OF CS */
+    pthread_mutex_unlock(&io_mutex);
 }
 
+/**
+ * Creates a READ task and enqueues it in the IO wait queue
+ */
 char *sut_read()
 {
+    struct io_msg msg;
+    strncpy(msg.cmd, "READ", CMDSIZE);
+
+    /* BEGININNING OF CS */
+    pthread_mutex_lock(&io_mutex);
+    queue_insert_tail(io_queue, queue_new_node(&msg));
+    printf("Succesfully created IO task\n");
+    /* END OF CS */
+    pthread_mutex_unlock(&io_mutex);
 }
 
 /////////////////// KERNEL LEVEL THREAD FUNCTIONS ///////////////////
@@ -222,7 +298,6 @@ void *c_exec()
         // no tasks left
         else
         {
-            printf("Empty task queue\n");
             if (sd)
             {
                 printf("Shutting down...\n");
@@ -230,17 +305,16 @@ void *c_exec()
             }
             else
             {
-                usleep(1000 * 1000);
-                printf("Waiting...\n");
+                printf("Waiting for tasks...\n");
+                sleep(1);
             }
         }
         usleep(CEXECSLEEP);
     }
 }
 
-void *i_exec(){
-
-
+void *i_exec()
+{
 }
 
 /////////////////// IO CONNECTION FUNCTIONS ///////////////////
