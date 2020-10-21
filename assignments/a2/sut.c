@@ -41,6 +41,14 @@ pthread_t i_exec_handle;
 /* execution flag */
 bool sd = false;
 
+/* io queue empty flag */
+bool io_empty = true;
+
+/* task queue empty flag */
+bool trq_empty = true;
+
+
+
 /* computation execution thread method declaration*/
 void *c_exec();
 
@@ -220,7 +228,6 @@ void sut_open(char *dest, int port)
     queue_insert_tail(io_queue, queue_new_node(&msg));
     /* END OF IO QUEUE CS */
     pthread_mutex_unlock(&io_mutex);
-
     // swap back to main context
     swapcontext(&(cur_task->context), &main_context);
 }
@@ -258,7 +265,6 @@ void sut_write(char *buf, int size)
     struct io_msg *test = queue_peek_front(io_queue)->data;
     /* END OF IO QUEUE CS */
     pthread_mutex_unlock(&io_mutex);
-
     // swap back to main context
     swapcontext(&(cur_task->context), &main_context);
 }
@@ -324,7 +330,6 @@ char *sut_read()
     queue_insert_tail(io_queue, queue_new_node(&msg));
     /* END OF IO QUEUE CS */
     pthread_mutex_unlock(&io_mutex);
-
     // swap back to main context
     swapcontext(&(cur_task->context), &main_context);
 }
@@ -356,13 +361,15 @@ void *c_exec()
         // launch a task
         if (head != NULL)
         {
+            trq_empty = false;
             head_task = head->data;
             swapcontext(&main_context, &(head_task->context));
         }
         // no tasks left
         else
         {
-            if (sd)
+            trq_empty = true;
+            if (sd && io_empty)
             {
                 printf("Shutting down...\n");
                 break;
@@ -401,6 +408,7 @@ void *i_exec()
         // launch a task
         if (head != NULL)
         {
+            io_empty = false;
             head_msg = head->data;
             char *cmd = head_msg->cmd;
 
@@ -471,7 +479,8 @@ void *i_exec()
         // no IO tasks left
         else
         {
-            if (sd)
+            io_empty = true;
+            if (sd && trq_empty)
             {
                 printf("IO Shutting down...\n");
                 // leave while loop
