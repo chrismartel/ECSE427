@@ -41,5 +41,10 @@ clean:
 
 #Tutorial
 
+tutorial: pthreads userthreads
+
 pthreads: pthreads.c
 	gcc pthreads.c -o pthreads -l pthread 
+
+userthreads: userthreads.c 
+	gcc userthreads.c -o userthreads

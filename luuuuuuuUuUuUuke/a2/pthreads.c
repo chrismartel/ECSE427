@@ -6,7 +6,8 @@
 /**
  * Information on the pthreads file
  * 
- * Posix threads are implemented which include the following functions:
+ * Posix threads are implemented which include the following functions: 
+ * (**important**: pthreads are just to interact with the kernel**) 
  * 
  *  - pthread_create(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine) (void *), void *arg)
  *  
