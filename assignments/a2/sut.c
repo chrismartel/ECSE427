@@ -39,7 +39,7 @@ pthread_t c_exec_handle;
 pthread_t i_exec_handle;
 
 /* execution flag */
-bool sd;
+bool sd = false;
 
 /* computation execution thread method declaration*/
 void *c_exec();
@@ -84,9 +84,8 @@ void sut_init()
     numthreads = 0;
     curthread = 0;
 
-    sd = false;
-
     pthread_create(&c_exec_handle, NULL, c_exec, NULL);
+    pthread_create(&i_exec_handle, NULL, i_exec, NULL);
     printf("Initialization successful\n");
 }
 
@@ -151,9 +150,6 @@ void sut_yield()
     pthread_mutex_lock(&trq_mutex);
     /* currently running task */
     struct sut_task *cur_task = queue_pop_head(task_ready_queue)->data;
-
-    /* END OF CS */
-    pthread_mutex_unlock(&trq_mutex);
 
     // clone current context
     getcontext(&(cur_task->context));
@@ -259,6 +255,7 @@ void sut_write(char *buf, int size)
     /* BEGININNING OF IO QUEUE CS */
     pthread_mutex_lock(&io_mutex);
     queue_insert_tail(io_queue, queue_new_node(&msg));
+    struct io_msg *test = queue_peek_front(io_queue)->data;
     /* END OF IO QUEUE CS */
     pthread_mutex_unlock(&io_mutex);
 
@@ -370,11 +367,6 @@ void *c_exec()
                 printf("Shutting down...\n");
                 break;
             }
-            else
-            {
-                printf("Waiting for tasks...\n");
-                sleep(1);
-            }
         }
         usleep(THREADSLEEP);
     }
@@ -416,10 +408,14 @@ void *i_exec()
             if (!strcmp(trim(cmd), "OPEN"))
             {
                 // connect to server
+                printf("CONNECTING TO SERVER...\n");
                 if (connect_to_server(host_ip, head_msg->port, &sockfd) < 0)
                 {
                     fflush(stdout);
                     fprintf(stderr, "Error connecting to server\n");
+                    printf("IO Shutting down...\n");
+
+                    break;
                 }
                 // set read destination buffer
                 read_buf = head_msg->buf;
@@ -434,37 +430,52 @@ void *i_exec()
             else if (!strcmp(trim(cmd), "READ"))
             {
                 /* receive server response*/
+                printf("READING DATA...\n");
                 ssize_t byte_count = recv_message(sockfd, read_buf, sizeof(read_buf));
                 if (byte_count <= 0)
                 {
                     fflush(stdout);
                     fprintf(stderr, "Error in reading data from server...\n");
+                    printf("IO Shutting down...\n");
+
+                    break;
                 }
             }
             /* WRITE COMMAND */
             else if (!strcmp(trim(cmd), "WRITE"))
             {
+                printf("WRITING TO SERVER...\n");
                 /* send data to server*/
-                send_message(sockfd, head_msg->buf, head_msg->size);
+                if (send_message(sockfd, head_msg->buf, head_msg->size) == -1)
+                {
+                    fprintf(stderr, "Error in sending message to server...\n");
+                    printf("IO Shutting down...\n");
+
+                    break;
+                }
             }
             /* INVALID COMMAND */
             else
             {
                 printf("Error: invalid command in IO message queue\n");
             }
+
+            /* BEGININNING OF CS */
+            pthread_mutex_lock(&trq_mutex);
+
+            // add completed IO task to ready task queue
+            queue_insert_tail(task_ready_queue, queue_new_node(head_msg->task));
+            /* END OF CS */
+            pthread_mutex_unlock(&trq_mutex);
         }
-        // no tasks left
+        // no IO tasks left
         else
         {
             if (sd)
             {
-                printf("Shutting down...\n");
+                printf("IO Shutting down...\n");
+                // leave while loop
                 break;
-            }
-            else
-            {
-                printf("Waiting for tasks...\n");
-                sleep(1);
             }
         }
         usleep(THREADSLEEP);
