@@ -7,9 +7,13 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include "queue.h"
+#include "rpc.h"
+#include "mystringlib.h"
+
 #define STACKSIZE 1024 * 64
 #define MAXTHREADS 15
-#define CEXECSLEEP 100 // microseconds
+#define THREADSLEEP 100 // microseconds
 #define CMDSIZE 10
 
 
@@ -30,6 +34,7 @@ typedef struct io_msg
     int port;
     int size;
     char *buf;
+    struct sut_task *task;
 } io_msg;
 
 void sut_init();

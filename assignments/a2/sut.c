@@ -1,6 +1,4 @@
 #include "sut.h"
-#include "queue.h"
-#include "rpc.h"
 
 /////////////////// USER LEVEL THREADS DATA ///////////////////
 
@@ -191,26 +189,41 @@ void sut_exit()
     swapcontext(&(cur_task->context), &main_context);
 }
 
-
-
 /**
- * Creates an OPEN task and enqueues it in the IO wait queue
+ * Creates an OPEN task message and enqueues it in the IO wait queue
  * @param dest: destination buffer to read data from
  * @param port: port to establish remote process connection
  */
 void sut_open(char *dest, int port)
 {
+    /* BEGININNING OF CEXEC QUEUE CS */
+    pthread_mutex_lock(&trq_mutex);
+    /* currently running task */
+    struct sut_task *cur_task = queue_pop_head(task_ready_queue)->data;
+    /* END OF CEXEC QUEUE CS */
+    pthread_mutex_unlock(&trq_mutex);
+
+    // clone current context
+    getcontext(&(cur_task->context));
+    cur_task->context.uc_stack.ss_sp = cur_task->stack;
+    cur_task->context.uc_stack.ss_size = STACKSIZE;
+    cur_task->context.uc_link = &main_context;
+
+    /* IO Message struct */
     struct io_msg msg;
     strncpy(msg.cmd, "OPEN", CMDSIZE);
     msg.buf = dest;
     msg.port = port;
+    msg.task = cur_task;
 
-    /* BEGININNING OF CS */
+    /* BEGININNING OF IO QUEUE CS */
     pthread_mutex_lock(&io_mutex);
     queue_insert_tail(io_queue, queue_new_node(&msg));
-    printf("Succesfully created IO task\n");
-    /* END OF CS */
+    /* END OF IO QUEUE CS */
     pthread_mutex_unlock(&io_mutex);
+
+    // swap back to main context
+    swapcontext(&(cur_task->context), &main_context);
 }
 
 /**
@@ -220,17 +233,34 @@ void sut_open(char *dest, int port)
  */
 void sut_write(char *buf, int size)
 {
+    /* BEGININNING OF CEXEC QUEUE CS */
+    pthread_mutex_lock(&trq_mutex);
+    /* currently running task */
+    struct sut_task *cur_task = queue_pop_head(task_ready_queue)->data;
+    /* END OF CEXEC QUEUE CS */
+    pthread_mutex_unlock(&trq_mutex);
+
+    // clone current context
+    getcontext(&(cur_task->context));
+    cur_task->context.uc_stack.ss_sp = cur_task->stack;
+    cur_task->context.uc_stack.ss_size = STACKSIZE;
+    cur_task->context.uc_link = &main_context;
+
+    /* IO Message struct */
     struct io_msg msg;
     strncpy(msg.cmd, "WRITE", CMDSIZE);
     msg.buf = buf;
     msg.size = size;
+    msg.task = cur_task;
 
-    /* BEGININNING OF CS */
+    /* BEGININNING OF IO QUEUE CS */
     pthread_mutex_lock(&io_mutex);
     queue_insert_tail(io_queue, queue_new_node(&msg));
-    printf("Succesfully created IO task\n");
-    /* END OF CS */
+    /* END OF IO QUEUE CS */
     pthread_mutex_unlock(&io_mutex);
+
+    // swap back to main context
+    swapcontext(&(cur_task->context), &main_context);
 }
 
 /**
@@ -238,15 +268,32 @@ void sut_write(char *buf, int size)
  */
 void sut_close()
 {
+    /* BEGININNING OF CEXEC QUEUE CS */
+    pthread_mutex_lock(&trq_mutex);
+    /* currently running task */
+    struct sut_task *cur_task = queue_pop_head(task_ready_queue)->data;
+    /* END OF CEXEC QUEUE CS */
+    pthread_mutex_unlock(&trq_mutex);
+
+    // clone current context
+    getcontext(&(cur_task->context));
+    cur_task->context.uc_stack.ss_sp = cur_task->stack;
+    cur_task->context.uc_stack.ss_size = STACKSIZE;
+    cur_task->context.uc_link = &main_context;
+
+    /* IO Message struct */
     struct io_msg msg;
     strncpy(msg.cmd, "CLOSE", CMDSIZE);
+    msg.task = cur_task;
 
-    /* BEGININNING OF CS */
+    /* BEGININNING OF IO QUEUE CS */
     pthread_mutex_lock(&io_mutex);
     queue_insert_tail(io_queue, queue_new_node(&msg));
-    printf("Succesfully created IO task\n");
-    /* END OF CS */
+    /* END OF IO QUEUE CS */
     pthread_mutex_unlock(&io_mutex);
+
+    // swap back to main context
+    swapcontext(&(cur_task->context), &main_context);
 }
 
 /**
@@ -254,15 +301,32 @@ void sut_close()
  */
 char *sut_read()
 {
+    /* BEGININNING OF CEXEC QUEUE CS */
+    pthread_mutex_lock(&trq_mutex);
+    /* currently running task */
+    struct sut_task *cur_task = queue_pop_head(task_ready_queue)->data;
+    /* END OF CEXEC QUEUE CS */
+    pthread_mutex_unlock(&trq_mutex);
+
+    // clone current context
+    getcontext(&(cur_task->context));
+    cur_task->context.uc_stack.ss_sp = cur_task->stack;
+    cur_task->context.uc_stack.ss_size = STACKSIZE;
+    cur_task->context.uc_link = &main_context;
+
+    /* IO Message struct */
     struct io_msg msg;
     strncpy(msg.cmd, "READ", CMDSIZE);
+    msg.task = cur_task;
 
-    /* BEGININNING OF CS */
+    /* BEGININNING OF IO QUEUE CS */
     pthread_mutex_lock(&io_mutex);
     queue_insert_tail(io_queue, queue_new_node(&msg));
-    printf("Succesfully created IO task\n");
-    /* END OF CS */
+    /* END OF IO QUEUE CS */
     pthread_mutex_unlock(&io_mutex);
+
+    // swap back to main context
+    swapcontext(&(cur_task->context), &main_context);
 }
 
 /////////////////// KERNEL LEVEL THREAD FUNCTIONS ///////////////////
@@ -309,12 +373,79 @@ void *c_exec()
                 sleep(1);
             }
         }
-        usleep(CEXECSLEEP);
+        usleep(THREADSLEEP);
     }
 }
 
 void *i_exec()
 {
-}
 
-/////////////////// IO CONNECTION FUNCTIONS ///////////////////
+    /* head node of the queue */
+    struct queue_entry *head;
+    head = malloc(sizeof(struct queue_entry));
+
+    /* head thread task of the queue*/
+    struct io_msg *head_msg;
+    head_msg = malloc(sizeof(struct io_msg));
+
+    /* head thread task of the queue*/
+    struct sut_task *head_task;
+    head_task = malloc(sizeof(struct sut_task));
+
+    while (true)
+    {
+        /* BEGININNING OF CS */
+        pthread_mutex_lock(&io_mutex);
+
+        // queue check
+        head = queue_peek_front(io_queue);
+
+        /* END OF CS*/
+        pthread_mutex_unlock(&io_mutex);
+
+        // launch a task
+        if (head != NULL)
+        {
+            head_msg = head->data;
+            char *cmd = head_msg->cmd;
+
+            /* OPEN command */
+            if (!strcmp(trim(cmd), "OPEN"))
+            {
+            }
+            /* CLOSE command */
+            else if (!strcmp(trim(cmd), "CLOSE"))
+            {
+            }
+            /* READ COMMAND */
+            else if (!strcmp(trim(cmd), "READ"))
+            {
+            }
+            /* WRITE COMMAND */
+            else if (!strcmp(trim(cmd), "WRITE"))
+            {
+            }
+            /* INVALID COMMAND */
+            else
+            {
+                printf("Error: invalid command in IO message queue\n");
+            }
+
+        }
+        // no tasks left
+        else
+        {
+            if (sd)
+            {
+                printf("Shutting down...\n");
+                break;
+            }
+            else
+            {
+                printf("Waiting for tasks...\n");
+                sleep(1);
+            }
+        }
+        usleep(THREADSLEEP);
+    }
+}
