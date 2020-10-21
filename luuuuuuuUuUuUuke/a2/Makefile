@@ -6,26 +6,26 @@
 
 testall: test1 test2 test3 test4 test5
 
-sut.o: sut.c
+sut.o: sut.c queue.h
 	gcc -c sut.c 
 
 a2_lib.o: a2_lib.c 
-	gcc - c a2_lib.c 
+	gcc -c a2_lib.c 
 
-test1: test1.o sut.o
-	gcc test1.o sut.o -o test1
+test1: test1.o sut.o a2_lib.o
+	gcc test1.o sut.o a2_lib.o -o test1
 
-test2: test2.o sut.o
-	gcc test2.o sut.o -o test2
+test2: test2.o sut.o a2_lib.o
+	gcc test2.o sut.o a2_lib.o -o test2
 
-test3: test3.o sut.o
-	gcc test3.o sut.o -o test3
+test3: test3.o sut.o a2_lib.o
+	gcc test3.o sut.o a2_lib.o -o test3
 
-test4: test4.o sut.o
-	gcc test4.o sut.o -o test4
+test4: test4.o sut.o a2_lib.o
+	gcc test4.o sut.o a2_lib.o -o test4
 
-test5: test5.o sut.o
-	gcc test5.o sut.o -o test5
+test5: test5.o sut.o a2_lib.o
+	gcc test5.o sut.o a2_lib.o -o test5
 
 test1.o: test1.c 
 	gcc -c test1.c
@@ -43,7 +43,7 @@ test5.o: test5.c
 	gcc -c test5.c
 
 clean:
-	rm -f *.o test1 test2 test3 test4 test5 pthreads userthreads
+	rm -f *.o test1 test2 test3 test4 test5 sut pthreads userthreads
 
 #Tutorial
 
