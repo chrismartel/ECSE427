@@ -6,6 +6,12 @@
 
 testall: test1 test2 test3 test4 test5
 
+sut.o: sut.c
+	gcc -c sut.c 
+
+a2_lib.o: a2_lib.c 
+	gcc - c a2_lib.c 
+
 test1: test1.o sut.o
 	gcc test1.o sut.o -o test1
 
