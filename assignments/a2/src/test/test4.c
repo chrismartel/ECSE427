@@ -1,10 +1,13 @@
-#include "../src/sut.h"
+#include "../sut.h"
 #include <stdio.h>
+#include <string.h>
 
 void hello1() {
     int i;
+    char sbuf[128];
     for (i = 0; i < 100; i++) {
-	printf("Hello world!, this is SUT-One \n");
+	sprintf(sbuf, "Hello world!, message from SUT-One i = %d \n", i);
+	sut_write(sbuf, strlen(sbuf));
 	sut_yield();
     }
     sut_exit();
