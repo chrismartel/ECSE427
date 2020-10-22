@@ -18,7 +18,7 @@ void hello1() {
 
 void hello2() {
     int i;
-    for (i = 0; i < 100; i++) {
+    for (i = 0; i < 0; i++) {
 	printf("Hello world!, this is SUT-Two \n");
 	sut_yield();
     }

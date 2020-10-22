@@ -22,6 +22,7 @@ typedef struct sut_task
     char *stack;
     sut_task_f fct;
     ucontext_t context;
+    char *return_val;
 
 } sut_task;
 

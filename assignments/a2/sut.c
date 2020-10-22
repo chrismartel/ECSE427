@@ -3,6 +3,9 @@
 #include "rpc.h"
 #include "mystringlib.h"
 
+/* run in IO mock mode or in server connection mode */
+bool io_mock = true;
+
 /////////////////// USER LEVEL THREADS DATA ///////////////////
 
 /* function pointer declaration*/
@@ -335,6 +338,8 @@ char *sut_read()
     pthread_mutex_unlock(&io_mutex);
     // swap back to main context
     swapcontext(&(cur_task->context), &main_context);
+
+    return cur_task->return_val;
 }
 
 /////////////////// KERNEL LEVEL THREAD FUNCTIONS ///////////////////
@@ -434,18 +439,26 @@ void *i_exec()
             /* OPEN command */
             if (!strcmp(trim(cmd), "OPEN"))
             {
-                // connect to server
                 printf("CONNECTING TO SERVER...\n");
 
-                if (connect_to_server(host_ip, head_msg->port, &sockfd) < 0)
+                if (io_mock)
                 {
-                    fflush(stdout);
-                    fprintf(stderr, "Error connecting to server\n");
-                    error = true;
+                    sleep(1);
                 }
-                
+                else
+                {
+                    // connect to server
+
+                    if (connect_to_server(host_ip, head_msg->port, &sockfd) < 0)
+                    {
+                        fflush(stdout);
+                        fprintf(stderr, "Error connecting to server\n");
+                        error = true;
+                    }
+                }
                 // set read destination buffer
                 read_buf = head_msg->buf;
+                printf("value: %s\n",read_buf);
             }
             /* CLOSE command */
             else if (!strcmp(trim(cmd), "CLOSE"))
@@ -458,25 +471,35 @@ void *i_exec()
             {
                 /* receive server response*/
                 printf("READING DATA...\n");
-                
-                ssize_t byte_count = recv_message(sockfd, read_buf, sizeof(read_buf));
-                if (byte_count <= 0)
+
+                if (io_mock)
                 {
-                    fflush(stdout);
-                    fprintf(stderr, "Error in reading data from server...\n");
-                    error = true;
+
+                    head_msg->task->return_val = "test";
+                    sleep(1);
                 }
-                
+                else
+                {
+                    ssize_t byte_count = recv_message(sockfd, head_msg->task->return_val, sizeof(BUFSIZE));
+                    if (byte_count <= 0)
+                    {
+                        fflush(stdout);
+                        fprintf(stderr, "Error in reading data from server...\n");
+                        error = true;
+                    }
+                }
             }
             /* WRITE COMMAND */
             else if (!strcmp(trim(cmd), "WRITE"))
             {
                 printf("WRITING TO SERVER...\n");
-  
-                if (send_message(sockfd, head_msg->buf, head_msg->size) == -1)
+                if (!io_mock)
                 {
-                    fprintf(stderr, "Error in sending message to server...\n");
-                    error = true;
+                    if (send_message(sockfd, head_msg->buf, head_msg->size) == -1)
+                    {
+                        fprintf(stderr, "Error in sending message to server...\n");
+                        error = true;
+                    }
                 }
             }
             /* INVALID COMMAND */
@@ -489,6 +512,7 @@ void *i_exec()
             // if IO task executed with no error
             if (!error)
             {
+
                 /* BEGININNING OF CS */
                 pthread_mutex_lock(&trq_mutex);
 
