@@ -139,6 +139,7 @@ bool sut_create(sut_task_f fn)
     /* BEGININNING OF CS */
     pthread_mutex_lock(&trq_mutex);
     queue_insert_tail(task_ready_queue, queue_new_node(task));
+    trq_empty = false;
     printf("Succesfully created task: %d\n", task->id);
     /* END OF CS */
     pthread_mutex_unlock(&trq_mutex);
@@ -165,6 +166,7 @@ void sut_yield()
 
     // add removed task back to queue
     queue_insert_tail(task_ready_queue, queue_new_node(cur_task));
+    trq_empty = false;
     /* END OF CS */
     pthread_mutex_unlock(&trq_mutex);
 
@@ -224,6 +226,7 @@ void sut_open(char *dest, int port)
     /* BEGININNING OF IO QUEUE CS */
     pthread_mutex_lock(&io_mutex);
     queue_insert_tail(io_queue, queue_new_node(&msg));
+    io_empty = false;
     /* END OF IO QUEUE CS */
     pthread_mutex_unlock(&io_mutex);
     // swap back to main context
@@ -260,7 +263,7 @@ void sut_write(char *buf, int size)
     /* BEGININNING OF IO QUEUE CS */
     pthread_mutex_lock(&io_mutex);
     queue_insert_tail(io_queue, queue_new_node(&msg));
-    struct io_msg *test = queue_peek_front(io_queue)->data;
+    io_empty = false;
     /* END OF IO QUEUE CS */
     pthread_mutex_unlock(&io_mutex);
     // swap back to main context
@@ -293,6 +296,7 @@ void sut_close()
     /* BEGININNING OF IO QUEUE CS */
     pthread_mutex_lock(&io_mutex);
     queue_insert_tail(io_queue, queue_new_node(&msg));
+    io_empty = false;
     /* END OF IO QUEUE CS */
     pthread_mutex_unlock(&io_mutex);
 
@@ -326,6 +330,7 @@ char *sut_read()
     /* BEGININNING OF IO QUEUE CS */
     pthread_mutex_lock(&io_mutex);
     queue_insert_tail(io_queue, queue_new_node(&msg));
+    io_empty = false;
     /* END OF IO QUEUE CS */
     pthread_mutex_unlock(&io_mutex);
     // swap back to main context
@@ -352,27 +357,36 @@ void *c_exec()
 
         // queue check
         head = queue_peek_front(task_ready_queue);
-
         /* END OF CS*/
         pthread_mutex_unlock(&trq_mutex);
-
         // launch a task
         if (head != NULL)
         {
+            /* BEGININNING OF CS */
+            pthread_mutex_lock(&io_mutex);
             trq_empty = false;
+            /* END OF CS */
+            pthread_mutex_unlock(&io_mutex);
+
             head_task = head->data;
             swapcontext(&main_context, &(head_task->context));
         }
         // no tasks left
         else
         {
+            /* BEGININNING OF CS */
+            pthread_mutex_lock(&trq_mutex);
+
             trq_empty = true;
+            /* END OF CS*/
+            pthread_mutex_unlock(&trq_mutex);
             if (sd && io_empty)
             {
                 printf("Shutting down...\n");
                 break;
             }
         }
+
         usleep(THREADSLEEP);
     }
 }
@@ -408,7 +422,12 @@ void *i_exec()
         // launch a task
         if (head != NULL)
         {
+            /* BEGININNING OF CS */
+            pthread_mutex_lock(&io_mutex);
             io_empty = false;
+            /* END OF CS */
+            pthread_mutex_unlock(&io_mutex);
+
             head_msg = head->data;
             char *cmd = head_msg->cmd;
 
@@ -417,12 +436,14 @@ void *i_exec()
             {
                 // connect to server
                 printf("CONNECTING TO SERVER...\n");
+
                 if (connect_to_server(host_ip, head_msg->port, &sockfd) < 0)
                 {
                     fflush(stdout);
                     fprintf(stderr, "Error connecting to server\n");
                     error = true;
                 }
+                
                 // set read destination buffer
                 read_buf = head_msg->buf;
             }
@@ -437,6 +458,7 @@ void *i_exec()
             {
                 /* receive server response*/
                 printf("READING DATA...\n");
+                
                 ssize_t byte_count = recv_message(sockfd, read_buf, sizeof(read_buf));
                 if (byte_count <= 0)
                 {
@@ -444,12 +466,13 @@ void *i_exec()
                     fprintf(stderr, "Error in reading data from server...\n");
                     error = true;
                 }
+                
             }
             /* WRITE COMMAND */
             else if (!strcmp(trim(cmd), "WRITE"))
             {
                 printf("WRITING TO SERVER...\n");
-                /* send data to server*/
+  
                 if (send_message(sockfd, head_msg->buf, head_msg->size) == -1)
                 {
                     fprintf(stderr, "Error in sending message to server...\n");
@@ -478,7 +501,11 @@ void *i_exec()
         // no IO tasks left
         else
         {
+            /* BEGININNING OF CS */
+            pthread_mutex_lock(&io_mutex);
             io_empty = true;
+            /* END OF CS */
+            pthread_mutex_unlock(&io_mutex);
             if (sd && trq_empty)
             {
                 printf("IO Shutting down...\n");
