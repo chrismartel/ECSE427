@@ -1,7 +1,6 @@
 #include "sut.h"
 #include "queue.h"
 #include "rpc.h"
-#include "mystringlib.h"
 
 /** connection mode 
  * true --> mock connection
@@ -77,6 +76,9 @@ int writeCmd = 2;
 
 int closeCmd = 3;
 
+/* open connection flag keeping track of if a connection was opened */
+bool opened = false;
+
 /////////////////// MAIN EXECUTION FUNCTIONS ///////////////////
 
 /**
@@ -119,6 +121,9 @@ void sut_shutdown()
 
     // reset shutdown flag
     sd = false;
+
+    // reset server connection flag
+    opened = false;
 }
 
 /////////////////// USER LEVEL THREAD LIBRARY FUNCTIONS ///////////////////
@@ -443,7 +448,6 @@ void *i_exec()
             /* END OF IO QUEUE CS */
             pthread_mutex_unlock(&io_mutex);
 
-
             /* BEGININNING OF CPU QUEUE CS */
             pthread_mutex_lock(&cpu_mutex);
             cpu_empty = false;
@@ -456,6 +460,7 @@ void *i_exec()
             /* OPEN command */
             if (cmd == openCmd)
             {
+                opened = true;
                 //printf("CONNECTING TO SERVER...\n");
 
                 /* mock connection mode*/
@@ -480,32 +485,47 @@ void *i_exec()
             /* CLOSE command */
             else if (cmd == closeCmd)
             {
+                /* check if connection was opened */
+                if (!opened)
+                {
+                    printf("Error: sut_open() must be called prior to sut_close()\n");
+                    error = true;
+                }
                 // close remote process connection
-                close(sockfd);
+                if (!error && !io_mock)
+                    close(sockfd);
             }
             /* READ COMMAND */
             else if (cmd == readCmd)
             {
-
+                /* check if connection was opened */
+                if (!opened)
+                {
+                    printf("Error: sut_open() must be called prior to sut_read()\n");
+                    error = true;
+                }
                 //printf("READING DATA...\n");
 
-                /* mock connection mode */
-                if (io_mock)
+                if (!error)
                 {
-
-                    head_msg->task->return_val = "test";
-                    sleep(1);
-                }
-                /* server connection mode */
-                else
-                {
-                    // read data from server and set task return val
-                    ssize_t byte_count = recv_message(sockfd, head_msg->task->return_val, sizeof(BUFSIZE));
-                    if (byte_count <= 0)
+                    /* mock connection mode */
+                    if (io_mock)
                     {
-                        fflush(stdout);
-                        fprintf(stderr, "Error in reading data from server...\n");
-                        error = true;
+
+                        head_msg->task->return_val = "test";
+                        sleep(1);
+                    }
+                    /* server connection mode */
+                    else
+                    {
+                        // read data from server and set task return val
+                        ssize_t byte_count = recv_message(sockfd, head_msg->task->return_val, sizeof(BUFSIZE));
+                        if (byte_count <= 0)
+                        {
+                            fflush(stdout);
+                            fprintf(stderr, "Error in reading data from server...\n");
+                            error = true;
+                        }
                     }
                 }
             }
@@ -514,18 +534,28 @@ void *i_exec()
             {
                 //printf("WRITING TO SERVER...\n");
 
-                /* mock connection mode */
-                if (io_mock)
+                /* check if connection was opened */
+                if (!opened)
                 {
-                    printf("%s\n", head_msg->buf);
+                    printf("Error: sut_open() must be called prior to sut_write()\n");
+                    error = true;
                 }
-                /* server connection mode */
-                else
+
+                if (!error)
                 {
-                    if (send_message(sockfd, head_msg->buf, head_msg->size) == -1)
+                    /* mock connection mode */
+                    if (io_mock)
                     {
-                        fprintf(stderr, "Error in sending message to server...\n");
-                        error = true;
+                        printf("%s\n", head_msg->buf);
+                    }
+                    /* server connection mode */
+                    else
+                    {
+                        if (send_message(sockfd, head_msg->buf, head_msg->size) == -1)
+                        {
+                            fprintf(stderr, "Error in sending message to server...\n");
+                            error = true;
+                        }
                     }
                 }
             }
