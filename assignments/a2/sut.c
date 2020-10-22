@@ -47,8 +47,6 @@ bool io_empty = true;
 /* task queue empty flag */
 bool trq_empty = true;
 
-
-
 /* computation execution thread method declaration*/
 void *c_exec();
 
@@ -394,13 +392,15 @@ void *i_exec()
     struct sut_task *head_task;
     head_task = malloc(sizeof(struct sut_task));
 
+    bool error = false;
     while (true)
     {
+        error = false;
         /* BEGININNING OF CS */
         pthread_mutex_lock(&io_mutex);
 
         // queue check
-        head = queue_peek_front(io_queue);
+        head = queue_pop_head(io_queue);
 
         /* END OF CS*/
         pthread_mutex_unlock(&io_mutex);
@@ -421,9 +421,7 @@ void *i_exec()
                 {
                     fflush(stdout);
                     fprintf(stderr, "Error connecting to server\n");
-                    printf("IO Shutting down...\n");
-
-                    break;
+                    error = true;
                 }
                 // set read destination buffer
                 read_buf = head_msg->buf;
@@ -444,9 +442,7 @@ void *i_exec()
                 {
                     fflush(stdout);
                     fprintf(stderr, "Error in reading data from server...\n");
-                    printf("IO Shutting down...\n");
-
-                    break;
+                    error = true;
                 }
             }
             /* WRITE COMMAND */
@@ -457,24 +453,27 @@ void *i_exec()
                 if (send_message(sockfd, head_msg->buf, head_msg->size) == -1)
                 {
                     fprintf(stderr, "Error in sending message to server...\n");
-                    printf("IO Shutting down...\n");
-
-                    break;
+                    error = true;
                 }
             }
             /* INVALID COMMAND */
             else
             {
                 printf("Error: invalid command in IO message queue\n");
+                error = true;
             }
 
-            /* BEGININNING OF CS */
-            pthread_mutex_lock(&trq_mutex);
+            // if IO task executed with no error
+            if (!error)
+            {
+                /* BEGININNING OF CS */
+                pthread_mutex_lock(&trq_mutex);
 
-            // add completed IO task to ready task queue
-            queue_insert_tail(task_ready_queue, queue_new_node(head_msg->task));
-            /* END OF CS */
-            pthread_mutex_unlock(&trq_mutex);
+                // add completed IO task to ready task queue
+                queue_insert_tail(task_ready_queue, queue_new_node(head_msg->task));
+                /* END OF CS */
+                pthread_mutex_unlock(&trq_mutex);
+            }
         }
         // no IO tasks left
         else
