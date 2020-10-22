@@ -28,7 +28,7 @@ typedef struct sut_task
 
 typedef struct io_msg
 {
-    char cmd[CMDSIZE];
+    int cmd;
     int port;
     int size;
     char *buf;

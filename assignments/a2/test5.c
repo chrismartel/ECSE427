@@ -3,6 +3,7 @@
 #include <string.h>
 
 void hello1() {
+    sut_open("127.0.0.31",1000);
     int i;
     char *str;
     for (i = 0; i < 10; i++) {
@@ -18,7 +19,7 @@ void hello1() {
 
 void hello2() {
     int i;
-    for (i = 0; i < 0; i++) {
+    for (i = 0; i < 5; i++) {
 	printf("Hello world!, this is SUT-Two \n");
 	sut_yield();
     }
