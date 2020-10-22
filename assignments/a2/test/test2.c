@@ -1,4 +1,4 @@
-#include "sut.h"
+#include "../src/sut.h"
 #include <stdio.h>
 
 void hello1() {

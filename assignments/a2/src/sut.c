@@ -1,7 +1,6 @@
 #include "sut.h"
 #include "queue.h"
 #include "rpc.h"
-#include "mystringlib.h"
 
 /** connection mode 
  * true --> mock connection
