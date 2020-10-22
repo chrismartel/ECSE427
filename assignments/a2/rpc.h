@@ -4,8 +4,8 @@
  *  @description: Header file for socket wrapper functions
  */
 
-#ifndef A1_LIB_
-#define A1_LIB_
+#ifndef RPC
+#define RPC
 
 #include <errno.h>
 #include <stdbool.h>
@@ -17,19 +17,13 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/socket.h>
-#include "mystringlib.h"
-#include "calculator.h"
 #include <sys/mman.h>
 
 #define BACKLOG_SIZE 10
 #define BUFSIZE 1024
-#define MAX_NB_CLIENTS 5
 #define INTSIZE 4
 #define COMMANDSIZE 12
 
-/* max integer value is 2150000000 hence 10 bytes + 1 byte of null char required for string reprsentation*/
-#define PARAMSIZE 11
-#define NBPARAMS 2
 
 /**
  *  Set up a server socket.
@@ -95,4 +89,4 @@ ssize_t send_message(int sockfd, const char *buf, size_t len);
  */
 ssize_t recv_message(int sockfd, char *buf, size_t len);
 
-#endif // A1_LIB_
+#endif // RPC
