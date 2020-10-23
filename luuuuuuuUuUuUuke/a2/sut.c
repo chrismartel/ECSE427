@@ -50,16 +50,37 @@ pthread_mutex_t i_mutex = PTHREAD_MUTEX_INITIALIZER;
 // Flags
 bool is_shutdown = false;
 
+ucontext_t m; //main context
+
 // C-EXEC function
-void *thread_c(void * arg){
-    pthread_mutex_t *c_mutex = arg;
+void *thread_c(){
+    //pthread_mutex_t *c_mutex = arg;
+
+    struct queue_entry *head_queue_node = malloc(sizeof(struct queue_entry));
+    struct task *task_queue_node = malloc(sizeof(struct task));
+    while(true){
+        pthread_mutex_lock(&c_mutex);
+        head_queue_node = queue_peek_front(task_queue);
+        pthread_mutex_unlock(&c_mutex);
+
+        if(head_queue_node!=NULL){
+            task_queue_node = head_queue_node -> data;
+            swapcontext(&m,&(task_queue_node -> task_context));
+        }
+        else{
+            if(is_shutdown){
+                printf("Shutdown\n");
+                break;
+            }
+        }
+        usleep(100); //100 microseconds
+        printf("waiting\n");
+    }
 }
 
 /* User-level threads */
 
 // Context switching can be used for user-level threads
-
-ucontext_t m; //main context
 
 // Thread data
 int numberThreads;
