@@ -32,7 +32,7 @@ struct queue* task_queue;
 // IO wait queue
 struct queue* wait_queue;
 
-// A task is an entry in the queue
+// Initialize a struct for a task which is an entry in the queue
 struct queue_entry;
 
 /* Kernel-level threads */
@@ -51,8 +51,8 @@ pthread_mutex_t i_mutex = PTHREAD_MUTEX_INITIALIZER;
 bool is_shutdown = false;
 
 // C-EXEC function
-void *thread_c(){
-
+void *thread_c(void * arg){
+    pthread_mutex_t *c_mutex = arg;
 }
 
 /* User-level threads */
@@ -61,11 +61,14 @@ void *thread_c(){
 
 ucontext_t m; //main context
 
+// Thread data
 int numberThreads;
+int currentThread;
+task threadarr[MAX_THREADS];
 
 // I-EXEC function
-void *thread_i(){
-
+void *thread_i(void *arg){
+    pthread_mutex_t *i_mutex = arg;
 }
 
 /* SUT Functions */
@@ -76,6 +79,7 @@ void sut_init(){
 
     // Thread counter
     numberThreads = 0;
+    currentThread = 0;
 
     // Create queue
     task_queue = malloc(sizeof(struct queue));
@@ -88,8 +92,8 @@ void sut_init(){
     queue_init(wait_queue);
 
     // Creating kernel-level threads
-    //pthread_create(&c_thread_handle,NULL, thread_c, NULL);
-    //pthread_create(&i_thread_handle,NULL, thread_i, NULL);
+    pthread_create(&c_thread_handle,NULL, thread_c, NULL);
+    pthread_create(&i_thread_handle,NULL, thread_i, NULL);
     printf("init success\n");
 }
 
@@ -100,23 +104,30 @@ void sut_init(){
 bool sut_create(sut_task_f fn){
 
     if(numberThreads > MAX_THREADS){
-        printf("Error: Limit of created threads has been reached.\n");
-        return false;
+        printf("FATAL: Maximum thread limit reached... creation failed! \n");
+		return -false;
     }else{
         // Create new task by initializing struct type
-        struct task *new_task = malloc(sizeof(struct task));
+        printf("Thread create started\n");
+        struct task *new_task = &(threadarr[numberThreads]);
+        getcontext(&(new_task -> task_context));
+
         new_task -> task_id = numberThreads;
         new_task -> task_func = fn;
+        new_task->task_stack = (char *)malloc(THREAD_STACK_SIZE);
         new_task -> task_context.uc_stack.ss_sp = new_task -> task_stack;
         new_task -> task_context.uc_stack.ss_size = THREAD_STACK_SIZE;
         new_task -> task_context.uc_link = 0;
         makecontext(&(new_task -> task_context), fn, 0);
         numberThreads++;
 
-        // Add task to back of ready queue
+        pthread_mutex_lock(&c_mutex);
+
+        /* Add task to back of ready queue*/
         queue_insert_tail(task_queue, queue_new_node(new_task));
 
         printf("created new task is a success\n");
+        pthread_mutex_unlock(&c_mutex);
         return true;
     }
 }
@@ -127,6 +138,7 @@ bool sut_create(sut_task_f fn){
  */
 
 void sut_yield(){
+    pthread_mutex_lock(&c_mutex);
     struct task* current_task;
     current_task = queue_pop_head(task_queue) ->data;
 
@@ -138,7 +150,8 @@ void sut_yield(){
 
     // Add back to ready queue at back
     queue_insert_tail(task_queue, queue_new_node(current_task));
-
+    printf("yielded task is a success\n");
+    pthread_mutex_unlock(&c_mutex);
     // Swap contexts
     swapcontext(&(current_task->task_context),&m);
 
@@ -146,6 +159,19 @@ void sut_yield(){
 
 void sut_exit(){
 
+    pthread_mutex_lock(&c_mutex);
+    struct task* current_task;
+    current_task = queue_pop_head(task_queue) ->data;
+    printf("Exited successfully!\n");
+    pthread_mutex_unlock(&c_mutex);
+
+    getcontext(&(current_task->task_context));
+    current_task -> task_context.uc_stack.ss_sp = current_task -> task_stack;
+    current_task -> task_context.uc_stack.ss_size = THREAD_STACK_SIZE;
+    current_task -> task_context.uc_link = &m;
+    
+
+    swapcontext(&(current_task->task_context),&m);
 }
 
 void sut_open(char *dest, int port){
@@ -165,5 +191,11 @@ char *sut_read(){
 }
 
 void sut_shutdown(){
-    
+    is_shutdown = true;
+    // wait for IO queue to finish processing first
+    pthread_join(i_thread_handle, NULL);
+    // wait for computation queue to finish last
+    pthread_join(c_thread_handle, NULL);
+
+    printf("Shutdown successfully\n");
 }

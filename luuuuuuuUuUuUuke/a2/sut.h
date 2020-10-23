@@ -1,3 +1,5 @@
+#define _XOPEN_SOURCE
+
 #ifndef __SUT_H__
 #define __SUT_H__
 
@@ -11,7 +13,7 @@
 /* Initialize macros */
 #define MAX_THREADS 32
 #define THREAD_STACK_SIZE 1024*64
-#define CSLEEP 100 // equivalent of 100 microseconds
+#define CSLEEP 100 
 
 
 typedef void (*sut_task_f)();

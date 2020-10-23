@@ -13,19 +13,19 @@ a2_lib.o: a2_lib.c
 	gcc -c a2_lib.c 
 
 test1: test1.o sut.o a2_lib.o
-	gcc test1.o sut.o a2_lib.o -o test1
+	gcc test1.o sut.o a2_lib.o -o test1 -lpthread
 
 test2: test2.o sut.o a2_lib.o
-	gcc test2.o sut.o a2_lib.o -o test2
+	gcc test2.o sut.o a2_lib.o -o test2 -lpthread
 
 test3: test3.o sut.o a2_lib.o
-	gcc test3.o sut.o a2_lib.o -o test3
+	gcc test3.o sut.o a2_lib.o -o test3 -lpthread
 
 test4: test4.o sut.o a2_lib.o
-	gcc test4.o sut.o a2_lib.o -o test4
+	gcc test4.o sut.o a2_lib.o -o test4 -lpthread
 
 test5: test5.o sut.o a2_lib.o
-	gcc test5.o sut.o a2_lib.o -o test5
+	gcc test5.o sut.o a2_lib.o -o test5 -lpthread
 
 test1.o: test1.c 
 	gcc -c test1.c
