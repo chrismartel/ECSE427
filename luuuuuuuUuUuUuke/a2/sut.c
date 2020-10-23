@@ -21,6 +21,9 @@ char *trim(char *s) {
   return (s == original) ? s : memmove(original, s, len + 1);
 }
 
+//Data for server
+int sockfd;
+
 // Define a type name for function pointer
 typedef void (*sut_task_f)();
 
@@ -78,6 +81,46 @@ void *thread_c(){
     }
 }
 
+// I-EXEC function (second-kernel thread)
+void *thread_i(){
+    struct queue_entry *head_queue_node = malloc(sizeof(struct queue_entry));
+    struct messages *message_queue_node = malloc(sizeof(struct messages));
+
+    while(true){
+        pthread_mutex_lock(&i_mutex);
+        head_queue_node = queue_peek_front(wait_queue);
+        pthread_mutex_unlock(&i_mutex);
+
+        if(head_queue_node!=NULL){
+           message_queue_node = head_queue_node -> data;
+           char *command_type = message_queue_node -> message_type;
+           if (!strcmp(trim(command_type), "OPEN")){ 
+
+           }
+            
+           else if (!strcmp(trim(command_type), "CLOSE")){
+           }
+            
+           else if (!strcmp(trim(command_type), "READ")){
+           }
+            
+           else if (!strcmp(trim(command_type), "WRITE")){
+           }
+           else{
+            printf("Error: invalid command in IO message queue\n");
+           }
+        }
+        else{
+            if(is_shutdown){
+                printf("Shutdown\n");
+                break;
+            }
+        }
+        usleep(100); //100 microseconds
+        printf("waiting\n");
+    }
+}
+
 /* User-level threads */
 
 // Context switching can be used for user-level threads
@@ -86,11 +129,6 @@ void *thread_c(){
 int numberThreads;
 int currentThread;
 task threadarr[MAX_THREADS];
-
-// I-EXEC function
-void *thread_i(void *arg){
-    pthread_mutex_t *i_mutex = arg;
-}
 
 /* SUT Functions */
 
@@ -197,18 +235,104 @@ void sut_exit(){
 
 void sut_open(char *dest, int port){
 
+    pthread_mutex_lock(&i_mutex);
+    struct task *task_to_run;
+    task_to_run = queue_pop_head(task_queue) -> data;
+    pthread_mutex_unlock(&i_mutex);
+
+    getcontext(&(task_to_run->task_context));
+    task_to_run->task_context.uc_stack.ss_sp = task_to_run->task_stack;
+    task_to_run->task_context.uc_stack.ss_size = THREAD_STACK_SIZE;
+    task_to_run->task_context.uc_link = &m;
+
+    struct messages message;
+    strncpy(message.message_type, "OPEN", 10);
+    message.message_task = task_to_run;
+    message.message_buffer = dest;
+    message.message_port = port;
+
+    
+    pthread_mutex_lock(&i_mutex);
+    queue_insert_tail(wait_queue, queue_new_node(&message));
+    printf("Succesfully created OPEN IO task\n");
+    
+    pthread_mutex_unlock(&i_mutex);
+
+    swapcontext(&(task_to_run -> task_context),&m);
 }
 
 void sut_write(char *buf, int size){
+    pthread_mutex_lock(&i_mutex);
+    struct task *task_to_run;
+    task_to_run = queue_pop_head(task_queue) -> data;
+    pthread_mutex_unlock(&i_mutex);
 
+    getcontext(&(task_to_run->task_context));
+    task_to_run->task_context.uc_stack.ss_sp = task_to_run->task_stack;
+    task_to_run->task_context.uc_stack.ss_size = THREAD_STACK_SIZE;
+    task_to_run->task_context.uc_link = &m;
+
+    struct messages message;
+    strncpy(message.message_type, "WRITE", 10);
+    message.message_task = task_to_run;
+    message.message_size = size;
+    message.message_buffer = buf;
+
+    pthread_mutex_lock(&i_mutex);
+    queue_insert_tail(wait_queue, queue_new_node(&message));
+    printf("Succesfully created WRITE task\n");
+    
+    pthread_mutex_unlock(&i_mutex);
+
+    swapcontext(&(task_to_run -> task_context),&m);
 }
 
 void sut_close(){
+    pthread_mutex_lock(&i_mutex);
+    struct task *task_to_run;
+    task_to_run = queue_pop_head(task_queue) -> data;
+    pthread_mutex_unlock(&i_mutex);
 
+    getcontext(&(task_to_run->task_context));
+    task_to_run->task_context.uc_stack.ss_sp = task_to_run->task_stack;
+    task_to_run->task_context.uc_stack.ss_size = THREAD_STACK_SIZE;
+    task_to_run->task_context.uc_link = &m;
+
+    struct messages message;
+    strncpy(message.message_type, "CLOSE", 10);
+    message.message_task = task_to_run;
+
+    pthread_mutex_lock(&i_mutex);
+    queue_insert_tail(wait_queue, queue_new_node(&message));
+    printf("Succesfully created CLOSE task\n");
+    
+    pthread_mutex_unlock(&i_mutex);
+
+    swapcontext(&(task_to_run -> task_context),&m);
 }
 
 char *sut_read(){
+    pthread_mutex_lock(&i_mutex);
+    struct task *task_to_run;
+    task_to_run = queue_pop_head(task_queue) -> data;
+    pthread_mutex_unlock(&i_mutex);
 
+    getcontext(&(task_to_run->task_context));
+    task_to_run->task_context.uc_stack.ss_sp = task_to_run->task_stack;
+    task_to_run->task_context.uc_stack.ss_size = THREAD_STACK_SIZE;
+    task_to_run->task_context.uc_link = &m;
+
+    struct messages message;
+    strncpy(message.message_type, "READ", 10);
+    message.message_task = task_to_run;
+
+    pthread_mutex_lock(&i_mutex);
+    queue_insert_tail(wait_queue, queue_new_node(&message));
+    printf("Succesfully created CLOSE task\n");
+    
+    pthread_mutex_unlock(&i_mutex);
+
+    swapcontext(&(task_to_run -> task_context),&m);
 }
 
 void sut_shutdown(){

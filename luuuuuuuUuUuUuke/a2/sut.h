@@ -18,6 +18,18 @@
 
 typedef void (*sut_task_f)();
 
+/* IO message passing as structs */
+typedef struct messages
+{
+    int message_id;
+    int message_size;
+    int message_port;
+    char message_type[10];
+    char *message_buffer;
+    struct task *message_task;
+
+} messages;
+
 /* Define the struct parameters for a task, based on YAUThreads */
 typedef struct task
 {
