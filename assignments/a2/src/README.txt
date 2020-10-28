@@ -22,9 +22,9 @@ In the "/test/" folder are located some test files.
 
 ///// COMPILATION /////
 
-To compile the library source files into binary, run the command "make a2". This will throw some
-errors since the reference to the pthread functions will be undefined, but the files will compile succesfully.
-To compile the test files in the "/test/" folder, run "make tests".
+To compile the library source files into binary, run the command "make a2".
+To compile the test files run the command "make tests".
+To compile both library files and tests run "make all".
 
 ***Since the pthread library is used in the sut.c library, when compiling a file into an executable, 
 "-lpthread" must be added at the end of the command. Ex: gcc test1.o sut.o rpc.o -o test1 -lpthread. 

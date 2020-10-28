@@ -13,6 +13,7 @@
 #define MAXTHREADS 15
 #define THREADSLEEP 100 // microseconds
 #define CMDSIZE 10
+#define MOCKWAIT 1
 
 typedef void (*sut_task_f)();
 

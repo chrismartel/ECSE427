@@ -13,6 +13,9 @@ sut.o: sut.c
 rpc.o: rpc.c
 	gcc -o rpc.o -c rpc.c
 
+small_server: small_server.c rpc.o
+	gcc small_server.c rpc.o -o small_server
+
 #  compile tests
 
 tests: test1 test2 test3 test4 test5

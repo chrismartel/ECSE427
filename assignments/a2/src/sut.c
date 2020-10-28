@@ -23,7 +23,10 @@ sut_task tasks[MAXTHREADS];
 ucontext_t main_context;
 
 /* current number of user-level threads*/
-int numthreads;
+int numThreads;
+
+/* current number of user-level threads exited*/
+int numExitedThreads;
 
 /* task ready queue pointer */
 struct queue *cpu_queue;
@@ -42,12 +45,6 @@ pthread_t i_exec_handle;
 
 /* shutdown flag */
 bool sd = false;
-
-/* io queue empty flag */
-bool io_empty = true;
-
-/* computation queue empty flag */
-bool cpu_empty = true;
 
 /* computation execution thread method declaration*/
 void *c_exec();
@@ -97,7 +94,7 @@ void sut_init()
     queue_init(io_queue);
 
     // init user thread count variables
-    numthreads = 0;
+    numThreads = 0;
 
     pthread_create(&c_exec_handle, NULL, c_exec, NULL);
     pthread_create(&i_exec_handle, NULL, i_exec, NULL);
@@ -117,7 +114,7 @@ void sut_shutdown()
     pthread_join(c_exec_handle, NULL);
 
     // reset number of user threads
-    numthreads = 0;
+    numThreads = 0;
 
     // reset shutdown flag
     sd = false;
@@ -135,16 +132,16 @@ void sut_shutdown()
  */
 bool sut_create(sut_task_f fn)
 {
-    if (numthreads >= MAXTHREADS)
+    if (numThreads >= MAXTHREADS)
     {
         printf("Error: Maximum thread limit reached... creation failed! \n");
         return false;
     }
     // create and setup new task
     /* new task */
-    struct sut_task *task = &(tasks[numthreads]);
+    struct sut_task *task = &(tasks[numThreads]);
     getcontext(&(task->context));
-    task->id = numthreads;
+    task->id = numThreads;
     task->stack = (char *)malloc(STACKSIZE);
     task->context.uc_stack.ss_sp = task->stack;
     task->context.uc_stack.ss_size = STACKSIZE;
@@ -152,13 +149,12 @@ bool sut_create(sut_task_f fn)
     task->fct = fn;
     // create context for this task
     makecontext(&(task->context), fn, 0);
-    numthreads++;
+    numThreads++;
     // add task to queue
 
     /* BEGININNING OF CPU QUEUE CS */
     pthread_mutex_lock(&cpu_mutex);
     queue_insert_tail(cpu_queue, queue_new_node(task));
-    cpu_empty = false;
     // printf("Succesfully created task: %d\n", task->id);
     /* END OF CPU QUEUE CS */
     pthread_mutex_unlock(&cpu_mutex);
@@ -184,7 +180,6 @@ void sut_yield()
 
     // add removed task back to queue
     queue_insert_tail(cpu_queue, queue_new_node(cur_task));
-    cpu_empty = false;
     /* END OF CPU QUEUE CS */
     pthread_mutex_unlock(&cpu_mutex);
 
@@ -211,6 +206,7 @@ void sut_exit()
     cur_task->context.uc_stack.ss_size = STACKSIZE;
     cur_task->context.uc_link = &main_context;
     // swap back to main context
+    numExitedThreads ++;
     swapcontext(&(cur_task->context), &main_context);
 }
 
@@ -244,7 +240,6 @@ void sut_open(char *dest, int port)
     /* BEGININNING OF IO QUEUE CS */
     pthread_mutex_lock(&io_mutex);
     queue_insert_tail(io_queue, queue_new_node(&msg));
-    io_empty = false;
     /* END OF IO QUEUE CS */
     pthread_mutex_unlock(&io_mutex);
     // swap back to main context
@@ -281,7 +276,6 @@ void sut_write(char *buf, int size)
     /* BEGININNING OF IO QUEUE CS */
     pthread_mutex_lock(&io_mutex);
     queue_insert_tail(io_queue, queue_new_node(&msg));
-    io_empty = false;
     /* END OF IO QUEUE CS */
     pthread_mutex_unlock(&io_mutex);
     // swap back to main context
@@ -314,7 +308,6 @@ void sut_close()
     /* BEGININNING OF IO QUEUE CS */
     pthread_mutex_lock(&io_mutex);
     queue_insert_tail(io_queue, queue_new_node(&msg));
-    io_empty = false;
     /* END OF IO QUEUE CS */
     pthread_mutex_unlock(&io_mutex);
 
@@ -348,7 +341,6 @@ char *sut_read()
     /* BEGININNING OF IO QUEUE CS */
     pthread_mutex_lock(&io_mutex);
     queue_insert_tail(io_queue, queue_new_node(&msg));
-    io_empty = false;
     /* END OF IO QUEUE CS */
     pthread_mutex_unlock(&io_mutex);
     // swap back to main context
@@ -382,25 +374,14 @@ void *c_exec()
         // launch a task
         if (head != NULL)
         {
-            /* BEGININNING OF CPU QUEUE CS */
-            pthread_mutex_lock(&io_mutex);
-            cpu_empty = false;
-            /* END OF CPU QUEUE CS */
-            pthread_mutex_unlock(&io_mutex);
-
             head_task = head->data;
             swapcontext(&main_context, &(head_task->context));
         }
         // no tasks left
         else
         {
-            /* BEGININNING OF CPU QUEUE CS */
-            pthread_mutex_lock(&cpu_mutex);
-
-            cpu_empty = true;
-            /* END OF CPU QUEUE CS*/
-            pthread_mutex_unlock(&cpu_mutex);
-            if (sd && io_empty)
+            // check if shutdown was issued and all threads have exited
+            if (sd && (numThreads == numExitedThreads))
             {
                 printf("Shutting down...\n");
                 break;
@@ -442,31 +423,20 @@ void *i_exec()
         // launch a task
         if (head != NULL)
         {
-            /* BEGININNING OF IO QUEUE CS */
-            pthread_mutex_lock(&io_mutex);
-            io_empty = false;
-            /* END OF IO QUEUE CS */
-            pthread_mutex_unlock(&io_mutex);
-
-            /* BEGININNING OF CPU QUEUE CS */
-            pthread_mutex_lock(&cpu_mutex);
-            cpu_empty = false;
-            /* END OF CPU QUEUE CS */
-            pthread_mutex_unlock(&cpu_mutex);
-
             head_msg = head->data;
             int cmd = head_msg->cmd;
 
             /* OPEN command */
             if (cmd == openCmd)
             {
+
                 opened = true;
                 //printf("CONNECTING TO SERVER...\n");
 
                 /* mock connection mode*/
                 if (io_mock)
                 {
-                    sleep(1);
+                    sleep(MOCKWAIT);
                 }
                 /* server connection mode */
                 else
@@ -513,13 +483,15 @@ void *i_exec()
                     {
 
                         head_msg->task->return_val = "test";
-                        sleep(1);
+                        sleep(MOCKWAIT);
                     }
                     /* server connection mode */
                     else
                     {
                         // read data from server and set task return val
-                        ssize_t byte_count = recv_message(sockfd, head_msg->task->return_val, sizeof(BUFSIZE));
+                        char readBuf[BUFSIZE];
+                        ssize_t byte_count = recv_message(sockfd, readBuf, sizeof(readBuf));
+                        head_msg->task->return_val = readBuf;
                         if (byte_count <= 0)
                         {
                             fflush(stdout);
@@ -581,12 +553,8 @@ void *i_exec()
         // no IO tasks left
         else
         {
-            /* BEGININNING OF IO QUEUE CS */
-            pthread_mutex_lock(&io_mutex);
-            io_empty = true;
-            /* END OF IO QUEUE CS */
-            pthread_mutex_unlock(&io_mutex);
-            if (sd && cpu_empty)
+            // check if shutdown was issued and threads have exited
+            if (sd && (numThreads == numExitedThreads))
             {
                 printf("IO Shutting down...\n");
                 // leave while loop
