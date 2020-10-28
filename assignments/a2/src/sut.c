@@ -22,11 +22,11 @@ sut_task tasks[MAXTHREADS];
 /* main context/ parent context */
 ucontext_t main_context;
 
-/* current number of user-level threads*/
+/* current number of active user-level threads*/
 int numThreads;
 
-/* current number of user-level threads exited*/
-int numExitedThreads;
+/* thread ID tracker */
+int curThread;
 
 /* task ready queue pointer */
 struct queue *cpu_queue;
@@ -38,6 +38,9 @@ pthread_mutex_t cpu_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /* IO queue mutex lock */
 pthread_mutex_t io_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+/* number of threads tracker mutex*/
+pthread_mutex_t t_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /* kernel threads handles */
 pthread_t c_exec_handle;
@@ -93,8 +96,10 @@ void sut_init()
     *io_queue = queue_create();
     queue_init(io_queue);
 
-    // init user thread count variables
+    // init current number of threads to 0
     numThreads = 0;
+    // init tread id counter
+    curThread = 0;
 
     pthread_create(&c_exec_handle, NULL, c_exec, NULL);
     pthread_create(&i_exec_handle, NULL, i_exec, NULL);
@@ -115,6 +120,8 @@ void sut_shutdown()
 
     // reset number of user threads
     numThreads = 0;
+    // reset thread id counter
+    curThread = 0;
 
     // reset shutdown flag
     sd = false;
@@ -141,7 +148,7 @@ bool sut_create(sut_task_f fn)
     /* new task */
     struct sut_task *task = &(tasks[numThreads]);
     getcontext(&(task->context));
-    task->id = numThreads;
+    task->id = curThread;
     task->stack = (char *)malloc(STACKSIZE);
     task->context.uc_stack.ss_sp = task->stack;
     task->context.uc_stack.ss_size = STACKSIZE;
@@ -149,7 +156,14 @@ bool sut_create(sut_task_f fn)
     task->fct = fn;
     // create context for this task
     makecontext(&(task->context), fn, 0);
+
+    /* BEGININNING OF NUMBER OF THREADS COUNTER CS */
+    pthread_mutex_lock(&t_mutex);
     numThreads++;
+    /* END OF NUMBER OF THREADS COUNTER CS */
+    pthread_mutex_unlock(&t_mutex);
+    curThread++;
+
     // add task to queue
 
     /* BEGININNING OF CPU QUEUE CS */
@@ -206,7 +220,13 @@ void sut_exit()
     cur_task->context.uc_stack.ss_size = STACKSIZE;
     cur_task->context.uc_link = &main_context;
     // swap back to main context
-    numExitedThreads++;
+
+    /* BEGININNING OF NUMBER OF THREADS COUNTER CS */
+    pthread_mutex_lock(&t_mutex);
+    numThreads--;
+    /* END OF NUMBER OF THREADS COUNTER CS */
+    pthread_mutex_unlock(&t_mutex);
+
     swapcontext(&(cur_task->context), &main_context);
 }
 
@@ -381,7 +401,7 @@ void *c_exec()
         else
         {
             // check if shutdown was issued and all threads have exited
-            if (sd && (numThreads == numExitedThreads))
+            if (sd && (numThreads == 0))
             {
                 printf("Shutting down...\n");
                 break;
@@ -551,14 +571,18 @@ void *i_exec()
             }
             else
             {
-                numExitedThreads++;
+                /* BEGININNING OF NUMBER OF THREADS COUNTER CS */
+                pthread_mutex_lock(&t_mutex);
+                numThreads--;
+                /* END OF NUMBER OF THREADS COUNTER CS */
+                pthread_mutex_unlock(&t_mutex);
             }
         }
         // no IO tasks left
         else
         {
             // check if shutdown was issued and threads have exited
-            if (sd && (numThreads == numExitedThreads))
+            if (sd && (numThreads == 0))
             {
                 printf("IO Shutting down...\n");
                 // leave while loop
