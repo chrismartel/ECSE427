@@ -206,7 +206,7 @@ void sut_exit()
     cur_task->context.uc_stack.ss_size = STACKSIZE;
     cur_task->context.uc_link = &main_context;
     // swap back to main context
-    numExitedThreads ++;
+    numExitedThreads++;
     swapcontext(&(cur_task->context), &main_context);
 }
 
@@ -548,6 +548,10 @@ void *i_exec()
                 queue_insert_tail(cpu_queue, queue_new_node(head_msg->task));
                 /* END OF CPU QUEUE CS */
                 pthread_mutex_unlock(&cpu_mutex);
+            }
+            else
+            {
+                numExitedThreads++;
             }
         }
         // no IO tasks left

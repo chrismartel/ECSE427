@@ -51,6 +51,7 @@ test4: test/test4.o sut.o rpc.o
 test5: test/test5.o sut.o rpc.o
 	gcc test/test5.o sut.o rpc.o -o test/test5 -lpthread
 
+
 # clean up
 clean:
 	rm sut.o rpc.o ; cd test ; rm test1 test2 test3 test4 test5 test1.o test2.o test3.o test4.o test5.o
