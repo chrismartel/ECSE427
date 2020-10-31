@@ -6,6 +6,9 @@
 
 testall: test1 test2 test3 test4 test5
 
+library: sut.o a2_lib.o
+	gcc sut.o a2_lib.o -o library
+
 sut.o: sut.c queue.h
 	gcc -c sut.c 
 
@@ -43,9 +46,9 @@ test5.o: test5.c
 	gcc -c test5.c
 
 clean:
-	rm -f *.o test1 test2 test3 test4 test5 sut pthreads userthreads
+	rm -f *.o test1 test2 test3 test4 test5 sut.o a2_lib.o test1.o test2.o test3.o test4.o test5.o
 
-#Tutorial
+# Tutorial
 
 tutorial: pthreads userthreads
 
@@ -54,6 +57,8 @@ pthreads: pthreads.c
 
 userthreads: userthreads.c 
 	gcc userthreads.c -o userthreads
+
+# Server for testing write and read functions
 
 test_server: test_server.c a2_lib.o
 	gcc test_server.c a2_lib.o -o test_server

@@ -41,6 +41,7 @@ pthread_mutex_t nbt_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 // Initializing flags
 bool is_shutdown;
+bool is_connected = false;
 
 // Thread data
 int threadCounter, currentThread;
@@ -114,50 +115,75 @@ void *thread_i(){
             // Open is called
             if (!strcmp(trim(command_type), "OPEN")){
                 printf("Connecting to server\n");
+                is_connected = true;    // Connection established
                 if (connect_to_server(message_queue_node->message_buffer, message_queue_node->message_port, &sockfd) < 0){
                     fflush(stdout);
                     fprintf(stderr, "Cannot connect to the server\n");
                     is_complete = false;
                 }
-
                 read_buf = message_queue_node->message_buffer;
             }
 
             // Close is called
             else if (!strcmp(trim(command_type), "CLOSE")){
-                close(sockfd);
+                // Need open before close command
+                if(!is_connected){
+                    is_complete = false;
+                }
+                else{
+                    close(sockfd);
+                }
+                
             }
 
             // Read function called
             else if (!strcmp(trim(command_type), "READ")){
-                printf("Reading to data\n");
-                char readData[BUFSIZE];
-                
-                ssize_t byte_count = recv_message(sockfd, readData, sizeof(readData));
-                message_queue_node -> message_task -> content = readData;
-                if (byte_count <= 0){
-                    fflush(stdout);
-                    fprintf(stderr, "Error in reading data\n");
+                if(!is_connected){
                     is_complete = false;
                 }
+                else{
+                    printf("Data being read\n");
+                    char data_read[BUFSIZE];
+                    // Read data by receiving message from socket and placing in buffer
+                    ssize_t byte_count = recv_message(sockfd, data_read, sizeof(data_read));
+                    // Assign data from buffer to the message initialized before
+                    message_queue_node -> message_task -> content = data_read;
+                    if (byte_count <= 0){
+                        fflush(stdout);
+                        fprintf(stderr, "Read data failed\n");
+                        is_complete = false;
+                    } 
+                }
+               
             }
 
             // Write function is called
             else if (!strcmp(trim(command_type), "WRITE")){
-                printf("Writing to data\n");
-                if (send_message(sockfd, message_queue_node->message_buffer, message_queue_node->message_size) == -1){
-                    fprintf(stderr, "error in sending data\n");
+                if(!is_connected){
                     is_complete = false;
                 }
+                else{
+                    printf("Data being written\n");
+                    if(send_message(sockfd, message_queue_node->message_buffer, message_queue_node->message_size) == -1){
+                        fprintf(stderr, "Writing data failed\n");
+                        is_complete = false;
+                    }
+                }
+                
+                
             }
+
+            // Command didn't work
             else{
-                printf("Error: invalid command in IO message queue\n");
+                printf("Command did not work\n");
                 is_complete = false;
             }
 
+            
             queue_pop_head(wait_queue);
             if (is_complete){
                 pthread_mutex_lock(&c_mutex);
+                // When finished IO message, can insert back to the ready queue
                 queue_insert_tail(task_queue, queue_new_node(message_queue_node->message_task));
                 pthread_mutex_unlock(&c_mutex);
             }
@@ -172,7 +198,7 @@ void *thread_i(){
         // Empty queue
         else{
             if ((threadCounter == 0) && is_shutdown){
-                printf("Shutdown_i\n");
+                printf("Shutdown_i_thread\n");
                 break; //exits if shutdown issued
             }
         }
@@ -188,16 +214,18 @@ void *thread_i(){
 /*** SUT Functions ***/
 
 /**
- *  Initialize everything before calling functions.
+ *  Initialize everything.
  */
+
 void sut_init(){
 
     // Thread counters
     threadCounter = 0;
     currentThread = 0;
     is_shutdown = false;
+    is_connected = false;
 
-    // Create queue
+    // Create queue for the tasks to be handled
     task_queue = malloc(sizeof(struct queue));
     *task_queue = queue_create();
 
@@ -212,9 +240,6 @@ void sut_init(){
     // Creating kernel-level threads
     pthread_create(&c_thread_handle, NULL, thread_c, NULL);
     pthread_create(&i_thread_handle, NULL, thread_i, NULL);
-    //printf("init success\n");
-
-    ///what does function does not block its caller mean?
 }
 
 /**
@@ -222,13 +247,16 @@ void sut_init(){
  *  to the end of the ready queue. This should be run on the C-exec
  *  thread. 
  */
+
 bool sut_create(sut_task_f fn){
 
+    // Verify if limit of threads is reached
     if (currentThread > MAX_THREADS){
-        printf("FATAL: Maximum thread limit reached... creation failed! \n");
+        printf(" Error: No more threads can be created. \n");
         return false;
     }
     else{
+
         // Create new task by initializing struct type
         printf("Thread create started\n");
         struct task *new_task = &(threadarr[currentThread]);
@@ -246,23 +274,22 @@ bool sut_create(sut_task_f fn){
         // Create the context for the new task
         makecontext(&(new_task->task_context), fn, 0);
 
-        // Increase the thread number counter by 1
+        // Increase the thread counters by 1
         currentThread = currentThread + 1;
 
         pthread_mutex_lock(&nbt_mutex);
-
         threadCounter = threadCounter + 1;
         pthread_mutex_unlock(&nbt_mutex);
 
         pthread_mutex_lock(&c_mutex);
 
-        /* Add task to back of ready queue as this is run on C-exec*/
+        // Add task to back of ready queue as this is run on C-exec
         queue_insert_tail(task_queue, queue_new_node(new_task));
 
         //printf("Created new task is a success\n");
 
         pthread_mutex_unlock(&c_mutex);
-        return true;
+        return 0;
     }
 }
 
@@ -275,7 +302,6 @@ bool sut_create(sut_task_f fn){
 
 void sut_yield(){
     pthread_mutex_lock(&c_mutex);
-
     // Initialize thread control block
     struct task *tcb;
     // Assign it the first task in queue of tasks
@@ -295,15 +321,14 @@ void sut_yield(){
 
     // Swap contexts with the main context
     swapcontext(&(tcb->task_context), &m);
-
-    // the C-exec task context is properly saved
-    //the c-exec thread schedules the next available task
 }
 
 /**
- *  The sut_exit() function will
+ *  The function will destroy the context of the task and not resume it later
+ *  (do not place back into ready queue)
  *  Called within user task.
  */
+
 void sut_exit(){
     pthread_mutex_lock(&c_mutex);
 
@@ -317,6 +342,7 @@ void sut_exit(){
     // Get the context of the tcb to be able to swap context
     getcontext(&(tcb->task_context));
     
+    // Decrement thread counter
     pthread_mutex_lock(&nbt_mutex);
     threadCounter = threadCounter - 1;
     pthread_mutex_unlock(&nbt_mutex);
@@ -325,12 +351,13 @@ void sut_exit(){
 
     // Instead simply swap to the main context who will be able to select next task in queue
     swapcontext(&(tcb->task_context), &m);
-    //current task context is removed from any state
 }
 
 /**
- * 
+ *  I-Exec opens a socket connection when open is called at dest on port port.
+ *  Save context of task that called open. 
  */
+
 void sut_open(char *dest, int port){
 
     pthread_mutex_lock(&i_mutex);
@@ -339,12 +366,13 @@ void sut_open(char *dest, int port){
     tcb = queue_pop_head(task_queue)->data;
     pthread_mutex_unlock(&i_mutex);
 
-    // Save the context of the
+    // Save the context of the task
     getcontext(&(tcb->task_context));
     tcb->task_context.uc_stack.ss_sp = tcb->task_stack;
     tcb->task_context.uc_stack.ss_size = THREAD_STACK_SIZE;
     tcb->task_context.uc_link = &m;
 
+    // Instantiate a message struct
     struct messages message;
     strncpy(message.message_type, "OPEN", 10);
     // Associate the socket to the task to run
@@ -363,11 +391,10 @@ void sut_open(char *dest, int port){
 }
 
 /**
- * 
+ *  Function writes size bytes from buf to socket of task.
  */
-void sut_write(char *buf, int size){
 
-    // Add error check for sut_open() before performing write
+void sut_write(char *buf, int size){
 
     // Since accessing shared data, use mutex lock for critical section
     pthread_mutex_lock(&i_mutex);
@@ -399,17 +426,16 @@ void sut_write(char *buf, int size){
     printf("Succesfully created WRITE task\n");
     pthread_mutex_unlock(&i_mutex);
 
-    //Kross:
-    // swap context when calling task is still continuing on c-exec
     swapcontext(&(tcb->task_context), &m);
 }
 
 /**
- * 
+ *  Function that closes the socket of task. 
  */
-void sut_close(){
-    //implement open verification check
 
+void sut_close(){
+
+    // Initialize a tcb representing calling task and assign task
     pthread_mutex_lock(&i_mutex);
     struct task *tcb;
     tcb = queue_pop_head(task_queue)->data;
@@ -419,23 +445,28 @@ void sut_close(){
     tcb->task_context.uc_stack.ss_sp = tcb->task_stack;
     tcb->task_context.uc_stack.ss_size = THREAD_STACK_SIZE;
     tcb->task_context.uc_link = &m;
-
+    // Initialize the message struct for IO communication
     struct messages message;
     strncpy(message.message_type, "CLOSE", 10);
     message.message_task = tcb;
 
+    // Add the new IO close task to the wait queue in IO
     pthread_mutex_lock(&i_mutex);
     queue_insert_tail(wait_queue, queue_new_node(&message));
     printf("Succesfully created CLOSE task\n");
 
     pthread_mutex_unlock(&i_mutex);
 
-    // why swap contexts when task should not be interrupted for close
     swapcontext(&(tcb->task_context), &m);
 }
 
+/**
+ *  Function that reads from socket of task.
+ */
+
 char *sut_read(){
 
+    // Initialize a tcb representing calling task and assign task
     pthread_mutex_lock(&i_mutex);
     struct task *tcb;
     tcb = queue_pop_head(task_queue)->data;
@@ -445,12 +476,13 @@ char *sut_read(){
     tcb->task_context.uc_stack.ss_sp = tcb->task_stack;
     tcb->task_context.uc_stack.ss_size = THREAD_STACK_SIZE;
     tcb->task_context.uc_link = &m;
-
+    // Initialize the message struct for IO communication
     struct messages message;
     strncpy(message.message_type, "READ", 10);
     message.message_task = tcb;
 
     pthread_mutex_lock(&i_mutex);
+    // Add the new IO read task to the wait queue in IO
     queue_insert_tail(wait_queue, queue_new_node(&message));
     printf("Succesfully created READ task\n");
     pthread_mutex_unlock(&i_mutex);
@@ -473,10 +505,10 @@ void sut_shutdown(){
     //printf("Shutdown successfully\n");
     
     // Reset variables
+    is_shutdown = false;
+    is_connected = false;
     threadCounter = 0;
     currentThread =0;
-    is_shutdown = false;
-    
 }
 
 /* Trim function used to have correct spacing*/
