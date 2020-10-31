@@ -5,7 +5,8 @@
 void hello1() {
     int i;
     char *str;
-    for (i = 0; i < 10; i++) {
+    sut_open("0.0.0.0",6969);
+    for (i = 0; i < 4; i++) {
 	str = sut_read();
 	if (strlen(str) != 0)
 	    printf("I am SUT-One, message from server: %s\n", str);
@@ -18,7 +19,7 @@ void hello1() {
 
 void hello2() {
     int i;
-    for (i = 0; i < 100; i++) {
+    for (i = 0; i < 4; i++) {
 	printf("Hello world!, this is SUT-Two \n");
 	sut_yield();
     }

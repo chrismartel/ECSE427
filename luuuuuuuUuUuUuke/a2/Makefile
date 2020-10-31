@@ -54,3 +54,6 @@ pthreads: pthreads.c
 
 userthreads: userthreads.c 
 	gcc userthreads.c -o userthreads
+
+test_server: test_server.c a2_lib.o
+	gcc test_server.c a2_lib.o -o test_server

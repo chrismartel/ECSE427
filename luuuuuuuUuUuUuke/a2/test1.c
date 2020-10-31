@@ -3,7 +3,7 @@
 
 void hello1() {
     int i;
-    for (i = 0; i < 10; i++) {
+    for (i = 0; i < 4; i++) {
 	printf("Hello world!, this is SUT-One \n");
 	sut_yield();
     }
@@ -12,7 +12,7 @@ void hello1() {
 
 void hello2() {
     int i;
-    for (i = 0; i < 10; i++) {
+    for (i = 0; i < 4; i++) {
 	printf("Hello world!, this is SUT-Two \n");
 	sut_yield();
     }
