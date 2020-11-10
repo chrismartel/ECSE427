@@ -320,7 +320,10 @@ void allocate_block(void *newBlock, int size, int excessSize, int fromFreeList)
 	//	If excess free size is big enough
 	if (addFreeBlock)
 	{
-		//	TODO: Create a free block using the excess memory size, then assign it to the newBlock
+		//	DONE: Create a free block using the excess memory size, then assign it to the newBlock
+		excessFreeBlock = newBlock + size + FREE_BLOCK_HEADER_SIZE;
+		setBlockSize(excessFreeBlock, excessSize);
+		setTag(excessFreeBlock, FREE);
 
 		//	Checks if the new block was allocated from the free memory list
 		if (fromFreeList)
@@ -337,7 +340,9 @@ void allocate_block(void *newBlock, int size, int excessSize, int fromFreeList)
 	//	Otherwise add the excess memory to the new block
 	else
 	{
-		//	TODO: Add excessSize to size and assign it to the newBlock
+		//	DONE: Add excessSize to size and assign it to the newBlock
+		size += excessSize;
+		setBlockSize(newBlock, size);
 
 		//	Checks if the new block was allocated from the free memory list
 		if (fromFreeList)
@@ -356,7 +361,13 @@ void allocate_block(void *newBlock, int size, int excessSize, int fromFreeList)
  */
 void replace_block_freeList(void *oldBlock, void *newBlock)
 {
-	//	TODO: Replace the old block with the new block
+	//	DONE: Replace the old block with the new block
+	setTag(oldBlock, ALLOCATED);
+	setTag(newBlock, FREE);
+	void *previousBlock = getPrevious(oldBlock);
+	void *nextBlock = getNext(oldBlock);
+	setNext(previousBlock, newBlock);
+	setPrevious(nextBlock, newBlock);
 
 	//	Updates SMA info
 	totalAllocatedSize += (getBlockSize(oldBlock) - getBlockSize(newBlock));
@@ -371,7 +382,7 @@ void replace_block_freeList(void *oldBlock, void *newBlock)
  */
 void add_block_freeList(void *block)
 {
-	//	TODO: 	Add the block to the free list
+	//	DONE: 	Add the block to the free list
 	//	Hint: 	You could add the free block at the end of the list, but need to check if there
 	//			exits a list. You need to add the TAG to the list.
 	//			Also, you would need to check if merging with the "adjacent" blocks is possible or not.
@@ -385,7 +396,7 @@ void add_block_freeList(void *block)
 		setNext(block, NULL);
 		setPrevious(block, NULL);
 		freeListTail = block;
-		setTag(block,FREE);
+		setTag(block, FREE);
 	}
 	// list does exist
 	else
@@ -426,7 +437,7 @@ void add_block_freeList(void *block)
 			setNext(ptr, block);
 			setPrevious(block, ptr);
 			freeListTail = block;
-			setTag(block,FREE);
+			setTag(block, FREE);
 		}
 	}
 
@@ -443,7 +454,7 @@ void add_block_freeList(void *block)
  */
 void remove_block_freeList(void *block)
 {
-	//	TODO: 	Remove the block from the free list
+	//	DONE: 	Remove the block from the free list
 	//	Hint: 	You need to update the pointers in the free blocks before and after this block.
 	//			You also need to remove any TAG in the free block.
 
@@ -469,8 +480,8 @@ void remove_block_freeList(void *block)
 	{
 		void *nextBlock = getNext(block);
 		void *previousBlock = getPrevious(block);
-		setNext(previousBlock,nextBlock);
-		setPrevious(nextBlock,previousBlock);
+		setNext(previousBlock, nextBlock);
+		setPrevious(nextBlock, previousBlock);
 	}
 	setTag(block, ALLOCATED);
 
@@ -555,7 +566,19 @@ int get_largest_freeBlock()
 {
 	int largestBlockSize = 0;
 
-	//	TODO: Iterate through the Free Block List to find the largest free block and return its size
+	//	DONE: Iterate through the Free Block List to find the largest free block and return its size
+	void *ptr = freeListHead;
+	while (true)
+	{
+		int currentBlockSize = getBlockSize(ptr);
+		if (currentBlockSize > largestBlockSize)
+		{
+			largestBlockSize = currentBlockSize;
+		}
+		if (ptr == freeListTail)
+			break;
+		ptr = getNext(ptr);
+	}
 
 	return largestBlockSize;
 }
