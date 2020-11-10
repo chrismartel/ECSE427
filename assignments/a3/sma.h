@@ -29,14 +29,7 @@
 
 // size is from previous to before endTag
 
-typedef struct block 
-{
-	int size; // front of block
-    struct block *previous;
-	struct block *next;
 
-
-} block;
 
 //  Policies definition
 #define WORST_FIT	1
@@ -60,6 +53,14 @@ static void allocate_block(void* newBlock, int size, int excessSize, int fromFre
 static void replace_block_freeList(void* oldBlock, void* newBlock);
 static void add_block_freeList(void* block);
 static void remove_block_freeList(void* block);
-static int get_blockSize(void *ptr);
+static int get_blockSize(void *block);
 static int get_largest_freeBlock();
 //  TODO: Declare any private functions that you intend to add in your code.
+static void *getNext(void *block);
+static void setNext(void *block, void *next);
+static void *getPrevious(void *block);
+static void setPrevious(void *block, void *previous);
+static int getBlockSize(void *block);
+static void setBlockSize(void *block, int size);
+static bool getTag(void *block);
+static void setTag(void *block, bool tag);

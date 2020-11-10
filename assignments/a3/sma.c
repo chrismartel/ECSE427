@@ -23,12 +23,15 @@
 #include "sma.h" // Please add any libraries you plan to use inside this file
 
 /* Definitions*/
-#define MAX_TOP_FREE (128 * 1024)								// Max top free block size = 128 Kbytes
+#define MAX_TOP_FREE (128 * 1024)									// Max top free block size = 128 Kbytes
 #define FREE_BLOCK_HEADER_SIZE 2 * sizeof(char *) + 2 * sizeof(int) // Size of the Header in a free memory block
 //	TODO: Add constants here
+#define VOID_POINTER_SIZE 2
+#define INT_SIZE 4
+#define BOOL_SIZE 1
 
-// |frontTag|size|previous|next|--------|endSize|endTag|
-
+// BLOCK FORMAT: | - | - - - - | - - | - - | - - - - - - - - - - |
+//				  tag     size   prev  next          data 
 typedef enum
 {
 	WORST,
@@ -194,7 +197,7 @@ void *allocate_pBrk(int size)
 	struct block *newBlock = NULL;
 	int excessSize = MAX_TOP_FREE;
 
-	sbrk(size+MAX_TOP_FREE);
+	sbrk(size + MAX_TOP_FREE);
 
 	//	TODO: 	Allocate memory by incrementing the Program Break by calling sbrk() or brk()
 	//	Hint:	Getting an exact "size" of memory might not be the best idea. Why?
@@ -253,6 +256,7 @@ void *allocate_worst_fit(int size)
 	if (blockFound)
 	{
 		//	Allocates the Memory Block
+
 		allocate_block(worstBlock, size, excessSize, 1);
 	}
 	else
@@ -353,8 +357,8 @@ void replace_block_freeList(void *oldBlock, void *newBlock)
 	//	TODO: Replace the old block with the new block
 
 	//	Updates SMA info
-	totalAllocatedSize += (get_blockSize(oldBlock) - get_blockSize(newBlock));
-	totalFreeSize += (get_blockSize(newBlock) - get_blockSize(oldBlock));
+	totalAllocatedSize += (getBlockSize(oldBlock) - getBlockSize(newBlock));
+	totalFreeSize += (getBlockSize(newBlock) - getBlockSize(oldBlock));
 }
 
 /*
@@ -372,50 +376,53 @@ void add_block_freeList(void *block)
 	//			Merging would be tideous. Check adjacent blocks, then also check if the merged
 	//			block is at the top and is bigger than the largest free block allowed (128kB).
 
-	struct block *newBlock = (struct block*) block;
-
 	// list does not exist
 	if (freeListHead == NULL)
 	{
-		freeListHead = newBlock;
-		freeListTail = newBlock;
+		freeListHead = block;
+		setNext(block,NULL);
+		setPrevious(block,NULL);
+		freeListTail = block;
 	}
 	// list does exist
 	else
 	{
-		struct block *ptr = freeListHead;
-		while (ptr != freeListTail)
-		{
-			ptr = ptr->next;
-		}
-		ptr->next = newBlock;
-		newBlock->previous = ptr;
+		// struct block *ptr = freeListHead;
+		// while (ptr != freeListTail)
+		// {
+		// 	ptr = ptr->next;
+		// }
+		// ptr->next = newBlock;
+		// newBlock->previous = ptr;
+		// newBlock->next = freeListTail;
 
-		// check for right space
-		int* rightSpace = (int*) sbrk(0);
-		int newBlockEnd = (intptr_t)block + FREE_BLOCK_HEADER_SIZE + newBlock->size;
-		rightSpace -= newBlockEnd;
+		// // check for right space
+		// int *rightSpace = (int *)sbrk(0);
+		// int newBlockEnd = (intptr_t)block + FREE_BLOCK_HEADER_SIZE + newBlock->size;
+		// rightSpace -= newBlockEnd;
 
-		newBlock->size += (intptr_t)rightSpace;
+		// newBlock->size += (intptr_t)rightSpace;
 
-		// check if there is previous space
-		int previousBlockSize = *((int*)ptr);
-		int leftMemorySpace = newBlock - (ptr + FREE_BLOCK_HEADER_SIZE + previousBlockSize);
+		// // LEFT MERGE
 
-		// LEFT MERGE
-		if(leftMemorySpace == 0){
-			// increment block size
-			newBlock -= (previousBlockSize + FREE_BLOCK_HEADER_SIZE);
-			newBlock->size += previousBlockSize;
-			// fix previous and next pointers
-			newBlock->previous = ptr->previous;
-			ptr->previous->next = newBlock;
-		}
+		// // check if there is previous space
+		// int previousBlockSize = *((int *)ptr);
+		// int leftMemorySpace = newBlock - (ptr + FREE_BLOCK_HEADER_SIZE + previousBlockSize);
+
+		// if (leftMemorySpace == 0)
+		// {
+		// 	// increment block size
+		// 	newBlock -= (previousBlockSize + FREE_BLOCK_HEADER_SIZE);
+		// 	newBlock->size += previousBlockSize;
+		// 	// fix previous and next pointers
+		// 	newBlock->previous = ptr->previous;
+		// 	ptr->previous->next = newBlock;
+		// }
 	}
 
 	//	Updates SMA info
-	totalAllocatedSize -= get_blockSize(block);
-	totalFreeSize += get_blockSize(block);
+	totalAllocatedSize -= getBlockSize(block);
+	totalFreeSize += getBlockSize(block);
 }
 
 /*
@@ -429,33 +436,81 @@ void remove_block_freeList(void *block)
 	//	TODO: 	Remove the block from the free list
 	//	Hint: 	You need to update the pointers in the free blocks before and after this block.
 	//			You also need to remove any TAG in the free block.
-	struct block *removedBlock = block;
-	struct block *previousBlock = removedBlock->previous;
-	struct block *nextBlock = removedBlock->next;
-	previousBlock->next = nextBlock;
-	nextBlock->previous = previousBlock;
+	// struct block *removedBlock = block;
+	// struct block *previousBlock = removedBlock->previous;
+	// struct block *nextBlock = removedBlock->next;
+	// previousBlock->next = nextBlock;
+	// nextBlock->previous = previousBlock;
 
 	//	Updates SMA info
-	totalAllocatedSize += get_blockSize(block);
-	totalFreeSize -= get_blockSize(block);
+	totalAllocatedSize += getBlockSize(block);
+	totalFreeSize -= getBlockSize(block);
 }
 
 /*
- *	Funcation Name: get_blockSize
+ *	Funcation Name: getBlockSize
  *	Input type:		void*
  * 	Output type:	int
  * 	Description:	Extracts the Block Size
  */
-int get_blockSize(void *ptr)
+int getBlockSize(void *block)
 {
-	int *pSize;
-
-	//	Points to the address where the Length of the block is stored
-	pSize = (int *)ptr;
-	pSize--;
+	void *ptr;
+	ptr = ptr - 2 * VOID_POINTER_SIZE - INT_SIZE;
 
 	//	Returns the deferenced size
-	return *(int *)pSize;
+	return *(int *)ptr;
+}
+
+void setBlockSize(void *block, int size)
+{
+	void *ptr;
+	ptr = ptr - 2 * VOID_POINTER_SIZE - INT_SIZE;
+	*(int *)ptr = size;
+}
+
+bool getTag(void *block)
+{
+	void *ptr;
+	ptr = ptr - 2 * VOID_POINTER_SIZE - INT_SIZE - BOOL_SIZE;
+
+	//	Returns the deferenced size
+	return *(bool *)ptr;
+}
+
+void setTag(void *block, bool tag)
+{
+	void *ptr;
+	ptr = ptr - 2 * VOID_POINTER_SIZE - INT_SIZE - BOOL_SIZE;
+	*(bool *)ptr = tag;
+}
+
+/* Get previous pointer of a block
+ * @param block: address of block
+ */
+void *getPrevious(void *block)
+{
+	void **ptr = block - 2 * VOID_POINTER_SIZE;
+	return *ptr;
+}
+void setPrevious(void *block, void *previous)
+{
+	void **ptr = block - 2 * VOID_POINTER_SIZE;
+	*ptr = previous;
+}
+
+/* Get previous pointer of a block
+ * @param block: address of block
+ */
+void *getNext(void *block)
+{
+	void **ptr = block - VOID_POINTER_SIZE;
+	return *ptr;
+}
+void setNext(void *block, void *next)
+{
+	void **ptr = block - VOID_POINTER_SIZE;
+	*ptr = next;
 }
 
 /*
