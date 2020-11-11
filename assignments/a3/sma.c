@@ -196,10 +196,34 @@ void *sma_realloc(void *ptr, int size)
  */
 void *allocate_pBrk(int size)
 {
-	struct block *newBlock = NULL;
 	int excessSize = MAX_TOP_FREE;
+	void *newBlock;
 
-	sbrk(size + MAX_TOP_FREE);
+	// free blocks list empty
+	if (freeListHead == NULL)
+	{
+		newBlock = sbrk(2 * FREE_BLOCK_HEADER_SIZE + MAX_TOP_FREE + size) + FREE_BLOCK_HEADER_SIZE;
+	}
+	// free blocks list not empty
+	else
+	{
+		void *lastFreeBlock = freeListTail;
+		int lastFreeBlockSize = getBlockSize(lastFreeBlock);
+		void *endOfHeap = sbrk(0);
+		// last block on the heap is a free block
+		if (endOfHeap - lastFreeBlockSize == lastFreeBlock)
+		{
+			sbrk(size - lastFreeBlockSize + FREE_BLOCK_HEADER_SIZE + MAX_TOP_FREE);
+			newBlock = endOfHeap - lastFreeBlockSize;
+		}
+		// last block on the heap is not a free block
+		else
+		{
+			newBlock = sbrk(2 * FREE_BLOCK_HEADER_SIZE + MAX_TOP_FREE + size) + FREE_BLOCK_HEADER_SIZE;
+		}
+	}
+
+	excessSize = FREE_BLOCK_HEADER_SIZE + MAX_TOP_FREE;
 
 	//	TODO: 	Allocate memory by incrementing the Program Break by calling sbrk() or brk()
 	//	Hint:	Getting an exact "size" of memory might not be the best idea. Why?
@@ -251,9 +275,27 @@ void *allocate_worst_fit(int size)
 	int excessSize;
 	int blockFound = 0;
 
-	//	TODO: 	Allocate memory by using Worst Fit Policy
+	//	DONE: 	Allocate memory by using Worst Fit Policy
 	//	Hint:	Start off with the freeListHead and iterate through the entire list to get the largest block
+	worstBlock = freeListHead;
+	// block size we are looking for
+	int largestBlockSize = get_largest_freeBlock();
 
+	while (true)
+	{
+		int blockSize = getBlockSize(worstBlock);
+		// block found
+		if (blockSize == largestBlockSize)
+		{
+			blockFound = 1;
+			excessSize = blockSize - size;
+			break;
+		}
+		// no block found
+		if (worstBlock == freeListTail)
+			break;
+		worstBlock = getNext(worstBlock);
+	}
 	//	Checks if appropriate found is found.
 	if (blockFound)
 	{
@@ -282,10 +324,27 @@ void *allocate_next_fit(int size)
 	int excessSize;
 	int blockFound = 0;
 
-	//	TODO: 	Allocate memory by using Next Fit Policy
+	//	DONE: 	Allocate memory by using Next Fit Policy
 	//	Hint:	Start off with the freeListHead, and keep track of the current position in the free memory list.
 	//			The next time you allocate, it should start from the current position.
 
+	nextBlock = freeListHead;
+
+	while (true)
+	{
+		int blockSize = getBlockSize(nextBlock);
+		// block found
+		if (blockSize >= size)
+		{
+			blockFound = 1;
+			excessSize = blockSize - size;
+			break;
+		}
+		// no block found
+		if (nextBlock == freeListTail)
+			break;
+		nextBlock = getNext(nextBlock);
+	}
 	//	Checks if appropriate found is found.
 	if (blockFound)
 	{
@@ -322,7 +381,7 @@ void allocate_block(void *newBlock, int size, int excessSize, int fromFreeList)
 	{
 		//	DONE: Create a free block using the excess memory size, then assign it to the newBlock
 		excessFreeBlock = newBlock + size + FREE_BLOCK_HEADER_SIZE;
-		setBlockSize(excessFreeBlock, excessSize);
+		setBlockSize(excessFreeBlock, excessSize-FREE_BLOCK_HEADER_SIZE);
 		setTag(excessFreeBlock, FREE);
 
 		//	Checks if the new block was allocated from the free memory list
@@ -343,6 +402,7 @@ void allocate_block(void *newBlock, int size, int excessSize, int fromFreeList)
 		//	DONE: Add excessSize to size and assign it to the newBlock
 		size += excessSize;
 		setBlockSize(newBlock, size);
+		setTag(newBlock, ALLOCATED);
 
 		//	Checks if the new block was allocated from the free memory list
 		if (fromFreeList)
