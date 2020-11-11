@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include "sma.h"
 
+
 int main(int argc, char *argv[])
 {
 	int i, count = 0;
@@ -40,22 +41,23 @@ int main(int argc, char *argv[])
 	for (i = 0; i < 32; i++)
 	{
 		c[i] = (char *)sma_malloc(1024);
-		// sprintf(str, "c[i]: %p", c[i]);
-		// puts(str);
+		 sprintf(str, "c[i]: %p", c[i]);
+		 puts(str);
 	}
 
 	// Now deallocating some of the slots ..to free
+	puts("FREE SPACE BETWEEN 10-18");
 	for (i = 10; i < 18; i++)
 	{
 		sma_free(c[i]);
-		// sprintf(str, "Freeing c[i]: %p", c[i]);
-		// puts(str);
+		 sprintf(str, "Freeing c[i]: %p", c[i]);
+		 puts(str);
 	}
 
 	// Allocate some storage .. this should go into the freed storage
 	ct = (char *)sma_malloc(5 * 1024);
-	// sprintf(str, "CT : %p", ct);
-	// puts(str);
+	 sprintf(str, "CT : %p", ct);
+	 puts(str);
 
 	// Testing if you are finding the available holes
 	if (ct < c[31])
