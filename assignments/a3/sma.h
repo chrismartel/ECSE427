@@ -43,7 +43,6 @@ void sma_free(void* ptr);
 void sma_mallopt(int policy);
 void sma_mallinfo();
 void *sma_realloc(void *ptr, int size);
-void printBlockInfo(void *block);
 
 //  Private Functions declaration
 static void* allocate_pBrk(int size);
@@ -56,7 +55,8 @@ static void add_block_freeList(void* block);
 static void remove_block_freeList(void* block);
 static int get_blockSize(void *block);
 static int get_largest_freeBlock();
-//  TODO: Declare any private functions that you intend to add in your code.
+
+//  Getters Setters
 static void *getNext(void *block);
 static void setNext(void *block, void *next);
 static void *getPrevious(void *block);
@@ -66,11 +66,14 @@ static void setBlockSize(void *block, int size);
 static bool getTag(void *block);
 static void setTag(void *block, bool tag);
 
-static void printValue(void *toPrint, int dataType);
+// Helper Functions
 static bool isLastBlock(void *block);
 static bool isFirstBlock(void *block);
 static bool adjacentBlocks(void *leftBlock, void *rightBlock);
 static void *findNextFreeBlock(void *start);
 static void *findPreviousFreeBlock(void *start);
 static void *mergeBlocks(void *leftBlock, void *rightBlock);
-static void updateNextFitPointer();
+
+// Debugging tools
+static void printValue(void *toPrint, int dataType);
+static void printBlockInfo(void *block);
