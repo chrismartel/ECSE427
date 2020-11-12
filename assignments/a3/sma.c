@@ -418,7 +418,6 @@ void *allocate_next_fit(int size)
 	{
 		//puts("block found");
 		//	Allocates the Memory Block
-
 		allocate_block(nextBlock, size, excessSize, 1);
 	}
 	else
@@ -508,6 +507,10 @@ void allocate_block(void *newBlock, int size, int excessSize, int fromFreeList)
 void replace_block_freeList(void *oldBlock, void *newBlock)
 {
 	// puts("REPLACE BLOCK\n");
+	// puts("old");
+	// printBlockInfo(oldBlock);
+	// puts("new");
+	// printBlockInfo(newBlock);
 
 	//	DONE: Replace the old block with the new block
 
@@ -530,7 +533,7 @@ void replace_block_freeList(void *oldBlock, void *newBlock)
 	if (nextBlock != NULL)
 	{
 		setPrevious(nextBlock, newBlock);
-		setNext(newBlock, newBlock);
+		setNext(newBlock, nextBlock);
 	}
 	else
 	{
@@ -543,9 +546,10 @@ void replace_block_freeList(void *oldBlock, void *newBlock)
 	setTag(oldBlock, ALLOCATED);
 	setTag(newBlock, FREE);
 
+
 	//	Updates SMA info
-	totalAllocatedSize += (getBlockSize(oldBlock) - getBlockSize(newBlock));
-	totalFreeSize += (getBlockSize(newBlock) - getBlockSize(oldBlock));
+	totalAllocatedSize += getBlockSize(oldBlock);
+	totalFreeSize += getBlockSize(oldBlock);
 }
 
 /*
@@ -653,11 +657,7 @@ void add_block_freeList(void *block)
 				setNext(block, NULL);
 				freeListTail = block;
 			}
-			// puts("block size");
-			// int bsize = getBlockSize(block);
-			// printValue(&bsize,SIZE_TYPE);
-			// puts("block address");
-			// printValue(block, ADDRESS_TYPE);
+
 		}
 	}
 
