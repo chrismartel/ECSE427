@@ -77,12 +77,9 @@ void *sma_malloc(int size)
 
 	void *pMemory = NULL;
 
-	// puts("SMA_ALLOC\n");
-
 	// Checks if the free list is empty
 	if (freeListHead == NULL)
 	{
-		// puts("HEAD NULL\n");
 		// Allocate memory by increasing the Program Break
 		pMemory = allocate_pBrk(size);
 	}
@@ -90,7 +87,6 @@ void *sma_malloc(int size)
 	else
 	{
 
-		// puts("HEAD NOT NULL\n");
 		// Allocate memory from the free memory list
 		pMemory = allocate_freeList(size);
 
@@ -111,7 +107,6 @@ void *sma_malloc(int size)
 
 	// Updates SMA Info
 	totalAllocatedSize += size;
-	//printBlockInfo(pMemory);
 	return pMemory;
 }
 
@@ -139,8 +134,6 @@ void sma_free(void *ptr)
 		//	Adds the block to the free memory list
 		add_block_freeList(ptr);
 	}
-
-	//printBlockInfo(ptr);
 }
 
 /*
@@ -198,6 +191,38 @@ void *sma_realloc(void *ptr, int size)
 	//			chop off the current allocated memory and add to the free list. If new size is bigger
 	//			then check if there is sufficient adjacent free space to expand, otherwise find a new block
 	//			like sma_malloc
+
+	bool oldTag = getTag(ptr);
+	// memory was previously allocated
+	if (oldTag)
+	{
+		int oldSize = getBlockSize(ptr);
+		// new size is smaller
+		if (size <= oldSize)
+		{
+			int excessSize = oldSize - size;
+			allocate_block(ptr, size, excessSize, 0);
+			return ptr;
+		}
+		// new size is larger
+		else
+		{
+			void *oldBlock = ptr;
+
+			// free the memory block
+			sma_free(ptr);
+			void *newBlock = sma_malloc(size);
+			
+			// copy data from oldBlock to newBlock
+			memcpy(newBlock,oldBlock,oldSize);
+			return newBlock;
+		}
+	}
+	// memory not allocated yet
+	else
+	{
+		puts("Error: Attempting to reallocate unallocated space!");
+	}
 }
 
 /*
@@ -354,7 +379,6 @@ void *allocate_worst_fit(int size)
  */
 void *allocate_next_fit(int size)
 {
-	//puts ("NEXT FIT");
 	void *nextBlock;
 	int excessSize;
 	int blockFound = 0;
@@ -382,40 +406,32 @@ void *allocate_next_fit(int size)
 			blockFound = 1;
 			excessSize = blockSize - size;
 			nextFitPointer = getNext(nextBlock);
-			if(nextFitPointer==NULL)
+			if (nextFitPointer == NULL)
 				nextFitPointer = freeListHead;
 			break;
 		}
 		// no block found
-		if(nextBlock == freeListHead && nextBlock == freeListTail)
+		if (nextBlock == freeListHead && nextBlock == freeListTail)
 			break;
 		else if (nextBlock == freeListTail)
 			nextBlock = freeListHead;
 		else
 			nextBlock = getNext(nextBlock);
 
-		if(nextBlock == start)	
+		if (nextBlock == start)
 			break;
 	}
 	//	Checks if appropriate found is found.
 	if (blockFound)
 	{
-		//puts("block found");
 		//	Allocates the Memory Block
 		allocate_block(nextBlock, size, excessSize, 1);
 	}
 	else
 	{
-		//puts("block not found");
 		//	Assigns invalid valid
 		nextBlock = (void *)-2;
 	}
-
-	// nextFitPointer = findNextFreeBlock(nextBlock);
-	// if(nextFitPointer ==  NULL)
-	// 	nextFitPointer = freeListHead;
-	
-	printBlockInfo(nextFitPointer);
 
 	return nextBlock;
 }
@@ -530,7 +546,7 @@ void replace_block_freeList(void *oldBlock, void *newBlock)
 
 	//	Updates SMA info
 	totalAllocatedSize += getBlockSize(oldBlock);
-	totalFreeSize += getBlockSize(oldBlock);
+	totalFreeSize -= (getBlockSize(oldBlock) + FREE_BLOCK_HEADER_SIZE);
 }
 
 /*
@@ -680,10 +696,6 @@ void remove_block_freeList(void *block)
 	setTag(block, ALLOCATED);
 
 	//	Updates SMA info
-	// if (nextFitPointer == block)
-	// {
-	// 	nextFitPointer = freeListHead;
-	// }
 	totalAllocatedSize += getBlockSize(block);
 	totalFreeSize -= getBlockSize(block);
 }
