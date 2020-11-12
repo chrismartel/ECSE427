@@ -18,18 +18,11 @@
  */
 
 /* Includes */
-//  TODO: Add any libraries you might use here.
 #include <string.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
-
-
-
-// size is from previous to before endTag
-
-
 
 //  Policies definition
 #define WORST_FIT	1
@@ -53,7 +46,6 @@ static void allocate_block(void* newBlock, int size, int excessSize, int fromFre
 static void replace_block_freeList(void* oldBlock, void* newBlock);
 static void add_block_freeList(void* block);
 static void remove_block_freeList(void* block);
-static int get_blockSize(void *block);
 static int get_largest_freeBlock();
 
 //  Getters Setters

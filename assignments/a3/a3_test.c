@@ -26,6 +26,8 @@
 #include <stdlib.h>
 #include "sma.h"
 
+int allocated = 0;
+
 int main(int argc, char *argv[])
 {
 	int i, count = 0;
@@ -40,22 +42,25 @@ int main(int argc, char *argv[])
 	for (i = 0; i < 32; i++)
 	{
 		c[i] = (char *)sma_malloc(1024);
-		sprintf(str, "c[i]: %p", c[i]);
-		puts(str);
+		// sprintf(str, "c[i]: %p", c[i]);
+		// puts(str);
+		// allocated += 1024;
 	}
 
 	// Now deallocating some of the slots ..to free
-	puts("FREE SPACE BETWEEN 10-18");
+	// puts("FREE SPACE BETWEEN 10-18");
 	for (i = 10; i < 18; i++)
 	{
 		sma_free(c[i]);
-		sprintf(str, "Freeing c[i]: %p", c[i]);
-		puts(str);
+		// sprintf(str, "Freeing c[i]: %p", c[i]);
+		// puts(str);
+		// allocated -= 1024;
 	}
 	// Allocate some storage .. this should go into the freed storage
 	ct = (char *)sma_malloc(5 * 1024);
-	sprintf(str, "CT : %p", ct);
-	puts(str);
+	// allocated += 5*1024;
+	// sprintf(str, "CT : %p", ct);
+	// puts(str);
 
 	// Testing if you are finding the available holes
 	if (ct < c[31])
@@ -75,6 +80,7 @@ int main(int argc, char *argv[])
 
 		if (limitafter > limitbefore)
 			count++;
+		// allocated += i * 32*1024;
 	}
 
 	// Testing if the program breaks are incremented correctly
@@ -92,8 +98,9 @@ int main(int argc, char *argv[])
 	for (i = 0; i < 32; i++)
 	{
 		c[i] = (char *)sma_malloc(16 * 1024);
-		sprintf(str, "c[i]: %p", c[i]);
-		puts(str);
+		// sprintf(str, "c[i]: %p", c[i]);
+		// puts(str);
+		// allocated += 16 * 1024;
 	}
 
 	// Now deallocating some of the slots ..to free
@@ -122,7 +129,10 @@ int main(int argc, char *argv[])
 	sma_free(c[5]);
 	sma_free(c[4]);
 
+	// allocated -= 15 * 16 * 1024;
+
 	char *cp2 = (char *)sma_malloc(16 * 1024 * 2);
+	// allocated += 16 * 1024 * 2;
 
 	// Testing if the correct hole has been allocated
 	if (cp2 != NULL)
@@ -148,16 +158,15 @@ int main(int argc, char *argv[])
 	char *cp3 = (char *)sma_malloc(16 * 1024 * 3);
 	char *cp4 = (char *)sma_malloc(16 * 1024 * 2);
 
-
 	// Testing if the correct holes have been allocated
 	if (cp3 == c[8] && cp3 != NULL)
 	{
 		if (cp4 == c[19])
 		{
-			sprintf(str, "C[19]: %p", c[19]);
-			puts(str);
-			sprintf(str, "CP4: %p", cp4);
-			puts(str);
+			// sprintf(str, "C[19]: %p", c[19]);
+			// puts(str);
+			// sprintf(str, "CP4: %p", cp4);
+			// puts(str);
 
 			puts("\t\t\t\t PASSED\n");
 		}
@@ -189,6 +198,9 @@ int main(int argc, char *argv[])
 	puts("Test 6: Print SMA Statistics...");
 	puts("===============================");
 	sma_mallinfo();
+
+	// sprintf(str, "allocated : %d", allocated);
+	// puts(str);
 
 	return (0);
 }

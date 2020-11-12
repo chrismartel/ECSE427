@@ -113,6 +113,7 @@ void *sma_malloc(int size)
 	else
 	{
 		// Allocate memory from the free memory list
+
 		pMemory = allocate_freeList(size);
 
 		// If a valid memory could NOT be allocated from the free memory list
@@ -129,6 +130,15 @@ void *sma_malloc(int size)
 		sma_malloc_error = "Error: Memory allocation failed!";
 		return NULL;
 	}
+	else
+	{
+		// Update SMA
+		totalAllocatedSize += size;
+	}
+	// puts("allocated");
+	// printValue(&totalAllocatedSize, SIZE_TYPE);
+	// puts("free");
+	// printValue(&totalFreeSize, SIZE_TYPE);
 	return pMemory;
 }
 
@@ -156,6 +166,12 @@ void sma_free(void *ptr)
 		//	Adds the block to the free memory list
 		add_block_freeList(ptr);
 	}
+	totalAllocatedSize -= getBlockSize(ptr);
+	totalFreeSize += getBlockSize(ptr);
+	// puts("allocated");
+	// printValue(&totalAllocatedSize, SIZE_TYPE);
+	// puts("free");
+	// printValue(&totalFreeSize, SIZE_TYPE);
 }
 
 /*
@@ -219,6 +235,7 @@ void *sma_realloc(void *ptr, int size)
 		{
 			int excessSize = oldSize - size;
 			allocate_block(ptr, size, excessSize, 0);
+			totalAllocatedSize -= (oldSize - size);
 			return ptr;
 		}
 		// new size is larger
@@ -445,11 +462,13 @@ void *allocate_pBrk(int size)
 
 	int excessSize = MAX_TOP_FREE;
 	void *newBlock = NULL;
+	int breakIncrement;
 
 	// free block list is empty
 	if (freeListHead == NULL)
 	{
-		newBlock = sbrk(2 * FREE_BLOCK_HEADER_SIZE + MAX_TOP_FREE + size) + FREE_BLOCK_HEADER_SIZE;
+		breakIncrement = (2 * FREE_BLOCK_HEADER_SIZE) + MAX_TOP_FREE + size;
+		newBlock = sbrk(breakIncrement) + FREE_BLOCK_HEADER_SIZE;
 		heapBreak = sbrk(0);
 	}
 	// free block list is not empty
@@ -458,8 +477,6 @@ void *allocate_pBrk(int size)
 		// get info of last free block
 		void *lastFreeBlock = freeListTail;
 		int lastFreeBlockSize = getBlockSize(lastFreeBlock);
-
-		int breakIncrement;
 
 		// last block on the heap is a free block
 		if (isLastBlock(lastFreeBlock))
@@ -476,10 +493,14 @@ void *allocate_pBrk(int size)
 			newBlock = sbrk(breakIncrement) + FREE_BLOCK_HEADER_SIZE;
 		}
 	}
+
 	// set block status to allocated
 	setTag(newBlock, ALLOCATED);
 
 	excessSize = FREE_BLOCK_HEADER_SIZE + MAX_TOP_FREE;
+
+	// Update Free Space Info
+	totalFreeSize += breakIncrement;
 
 	//	Allocates the Memory Block
 	allocate_block(newBlock, size, excessSize, 0);
@@ -645,6 +666,7 @@ void allocate_block(void *newBlock, int size, int excessSize, int fromFreeList)
 {
 	void *excessFreeBlock;
 	int addFreeBlock;
+	int previousSize = getBlockSize(newBlock);
 
 	// 	Checks if excess free size is big enough to be added to the free memory list
 	//	Helps to reduce external fragmentation
@@ -671,7 +693,7 @@ void allocate_block(void *newBlock, int size, int excessSize, int fromFreeList)
 			setNext(newBlock, NULL);
 			void *prev = getPrevious(newBlock);
 			void *next = getNext(newBlock);
-			setTag(newBlock,ALLOCATED);
+			setTag(newBlock, ALLOCATED);
 			if (prev != NULL)
 				setNext(prev, next);
 			if (next != NULL)
@@ -734,6 +756,8 @@ void replace_block_freeList(void *oldBlock, void *newBlock)
 	setNext(oldBlock, NULL);
 	setTag(oldBlock, ALLOCATED);
 	setTag(newBlock, FREE);
+
+	totalFreeSize -= (getBlockSize(oldBlock) + FREE_BLOCK_HEADER_SIZE);
 }
 
 /*
@@ -838,6 +862,8 @@ void add_block_freeList(void *block)
 			}
 		}
 	}
+	//	Updates SMA info
+	//totalFreeSize += getBlockSize(block);
 }
 
 /*
@@ -861,7 +887,7 @@ void remove_block_freeList(void *block)
 		freeListTail = NULL;
 		nextFitPointer = NULL;
 	}
-	// block to remove is head block 
+	// block to remove is head block
 	else if (freeListHead == block)
 	{
 		freeListHead = nextBlock;
@@ -886,6 +912,9 @@ void remove_block_freeList(void *block)
 	setPrevious(block, NULL);
 	setNext(block, NULL);
 	setTag(block, ALLOCATED);
+
+	//	Updates SMA info
+	totalFreeSize -= getBlockSize(block);
 }
 
 /*
