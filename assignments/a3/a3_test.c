@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
 		 sprintf(str, "Freeing c[i]: %p", c[i]);
 		 puts(str);
 	}
-
+// PROBLEM HAPPENS HERE' NEXT POINTER OF HEAD GETS FUCKED UP
 	// Allocate some storage .. this should go into the freed storage
 	ct = (char *)sma_malloc(5 * 1024);
 	 sprintf(str, "CT : %p", ct);
