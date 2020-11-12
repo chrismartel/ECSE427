@@ -1,58 +1,63 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+void printValue(void *toPrint, int dataType)
+{
+    char buffer[50];
+
+    if (dataType == 0)
+    {
+        sprintf(buffer, "size: %d\n", *(int *)toPrint);
+    }
+    else if (dataType == 1)
+    {
+        sprintf(buffer, "pointer: %p\n", *(void **)toPrint);
+    }
+    else if (dataType == 2)
+    {
+        sprintf(buffer, "address: %p\n", toPrint);
+    }
+    else
+    {
+        sprintf(buffer, "tag: %d\n", *(bool *)toPrint);
+    }
+    puts(buffer);
+}
 
 int main()
 {
+    // void *previousBlock = malloc(128);
+    // void *nextBlock = malloc(128);
+    // void *block = malloc(128);
+    // void *ptr = block;
+    // bool tag = 1;
+    // *(bool *)ptr = tag;
 
-    void printValue(void *toPrint, int dataType)
-    {
-        char buffer[50];
+    // ptr = block + 1;
+    // int size = 8;
+    // *(int *)ptr = size;
 
-        if (dataType == 0)
-        {
-            sprintf(buffer, "size: %d\n", *(int *)toPrint);
-        }
-        else if (dataType == 1)
-        {
-            sprintf(buffer, "pointer: %p\n", *(void **)toPrint);
-        }
-        else if (dataType == 2)
-        {
-            sprintf(buffer, "address: %p\n", toPrint);
-        }
-        else
-        {
-            sprintf(buffer, "tag: %d\n", *(bool *)toPrint);
-        }
-        puts(buffer);
-    }
+    // void **ptr2 = block + 1 + 4;
+    // *ptr2 = previousBlock;
 
-    void *previousBlock = malloc(128);
-    void *nextBlock = malloc(128);
-    void *block = malloc(128);
-    void *ptr = block;
-    bool tag = 1;
-    *(bool *)ptr = tag;
+    // ptr2 = block + 1 + 4 + 8;
+    // *ptr2 = nextBlock;
 
-    ptr = block + 1;
-    int size = 8;
-    *(int *)ptr = size;
+    // printf("block address: %p\n", block);
+    // printf("previous block address: %p\n", previousBlock);
+    // printf("next block address: %p\n", nextBlock);
 
-    void **ptr2 = block + 1 + 4;
-    *ptr2 = previousBlock;
+    // printf("tag: %d\n", *(bool *)block);
+    // printf("size: %d\n", *(int *)(block + 1));
+    // printf("prev: %p\n", *(void **)(block + 1 + 4));
+    // printf("next: %p\n", *(void **)(block + 1 + 4 + 8));
 
-    ptr2 = block + 1 + 4 + 8;
-    *ptr2 = nextBlock;
+    void *ptr = malloc(4);
+    void *start = ptr;
+    void *ptr2 = malloc(4);
+    ptr = ptr2;
 
-    printf("block address: %p\n", block );
-    printf("previous block address: %p\n", previousBlock);
-    printf("next block address: %p\n", nextBlock);
+    printValue(ptr, 2);
+    printValue(start, 2);
 
-    printf("tag: %d\n", *(bool *)block);
-    printf("size: %d\n", *(int *)(block + 1));
-    printf("prev: %p\n", *(void **)(block + 1 + 4));
-    printf("next: %p\n", *(void **)(block + 1 + 4 + 8));
-
-    printValue(block, 2);
 }

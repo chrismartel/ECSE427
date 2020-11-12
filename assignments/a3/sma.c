@@ -139,8 +139,8 @@ void sma_free(void *ptr)
 		//	Adds the block to the free memory list
 		add_block_freeList(ptr);
 	}
-		printBlockInfo(ptr);
 
+	//printBlockInfo(ptr);
 }
 
 /*
@@ -249,7 +249,6 @@ void *allocate_pBrk(int size)
 			heapBreak = sbrk(0);
 			newBlock = lastFreeBlock;
 			setTag(newBlock, ALLOCATED);
-			nextFitPointer = freeListHead;
 		}
 		// last block on the heap is not a free block
 		else
@@ -356,32 +355,47 @@ void *allocate_worst_fit(int size)
 void *allocate_next_fit(int size)
 {
 	//puts ("NEXT FIT");
-	void *nextBlock = NULL;
+	void *nextBlock;
 	int excessSize;
 	int blockFound = 0;
 
 	//	DONE: 	Allocate memory by using Next Fit Policy
 	//	Hint:	Start off with the freeListHead, and keep track of the current position in the free memory list.
 	//			The next time you allocate, it should start from the current position.
+	if (nextFitPointer == NULL || getTag(nextFitPointer) == 1)
+	{
+		puts("reset to head");
+		nextBlock = freeListHead;
+	}
+	else
+		nextBlock = nextFitPointer;
 
-	nextBlock = freeListHead;
-
+	void *start = nextBlock;
+	void *returnBlock;
 
 	while (true)
 	{
 		int blockSize = getBlockSize(nextBlock);
-		//printValue(&blockSize, SIZE_TYPE);
 		// block found
 		if (blockSize >= size)
 		{
 			blockFound = 1;
 			excessSize = blockSize - size;
+			nextFitPointer = getNext(nextBlock);
+			if(nextFitPointer==NULL)
+				nextFitPointer = freeListHead;
 			break;
 		}
 		// no block found
-		if (nextBlock == freeListTail)
+		if(nextBlock == freeListHead && nextBlock == freeListTail)
 			break;
-		nextBlock = getNext(nextBlock);
+		else if (nextBlock == freeListTail)
+			nextBlock = freeListHead;
+		else
+			nextBlock = getNext(nextBlock);
+
+		if(nextBlock == start)	
+			break;
 	}
 	//	Checks if appropriate found is found.
 	if (blockFound)
@@ -397,61 +411,14 @@ void *allocate_next_fit(int size)
 		nextBlock = (void *)-2;
 	}
 
+	// nextFitPointer = findNextFreeBlock(nextBlock);
+	// if(nextFitPointer ==  NULL)
+	// 	nextFitPointer = freeListHead;
+	
+	printBlockInfo(nextFitPointer);
+
 	return nextBlock;
 }
-// void *allocate_next_fit(int size)
-// {
-// 	//puts("allocate next fit");
-// 	if (nextFitPointer == NULL)
-// 	{
-// 		nextFitPointer = freeListHead;
-// 	}
-
-// 	void *start = nextFitPointer;
-// 	int excessSize;
-// 	int blockFound = 0;
-
-// 	//	DONE: 	Allocate memory by using Next Fit Policy
-// 	//	Hint:	Start off with the freeListHead, and keep track of the current position in the free memory list.
-// 	//			The next time you allocate, it should start from the current position.
-
-// 	while (true)
-// 	{
-// 		int blockSize = getBlockSize(nextFitPointer);
-// 		// block found
-// 		if (blockSize >= size)
-// 		{
-// 			blockFound = 1;
-// 			excessSize = blockSize - size;
-// 			break;
-// 		}
-// 		if (getNext(nextFitPointer) == NULL)
-// 		{
-// 			nextFitPointer = freeListHead;
-// 		}
-// 		else
-// 		{
-// 			nextFitPointer = getNext(nextFitPointer);
-// 		}
-
-// 		// no block found
-// 		if (nextFitPointer == start)
-// 			break;
-// 	}
-// 	//	Checks if appropriate found is found.
-// 	if (blockFound)
-// 	{
-// 		//	Allocates the Memory Block
-// 		allocate_block(nextFitPointer, size, excessSize, 1);
-// 	}
-// 	else
-// 	{
-// 		//	Assigns invalid valid
-// 		nextFitPointer = (void *)-2;
-// 	}
-
-// 	return nextFitPointer;
-// }
 
 /*
  *	Funcation Name: allocate_block
@@ -489,8 +456,15 @@ void allocate_block(void *newBlock, int size, int excessSize, int fromFreeList)
 		}
 		else
 		{
-			setPrevious(newBlock,NULL);
-			setNext(newBlock,NULL);
+			setPrevious(newBlock, NULL);
+			setNext(newBlock, NULL);
+			void *prev = getPrevious(newBlock);
+			void *next = getNext(newBlock);
+			if (prev != NULL)
+				setNext(prev, next);
+			if (next != NULL)
+				setPrevious(next, prev);
+
 			//	Adds excess free block to the free list
 			add_block_freeList(excessFreeBlock);
 		}
@@ -557,10 +531,6 @@ void replace_block_freeList(void *oldBlock, void *newBlock)
 	//	Updates SMA info
 	totalAllocatedSize += getBlockSize(oldBlock);
 	totalFreeSize += getBlockSize(oldBlock);
-	// if (nextFitPointer == oldBlock)
-	// {
-	// 	nextFitPointer = freeListHead;
-	// }
 }
 
 /*
@@ -572,8 +542,7 @@ void replace_block_freeList(void *oldBlock, void *newBlock)
 void add_block_freeList(void *block)
 {
 	int blockSize = getBlockSize(block);
-			setTag(block, FREE);
-
+	setTag(block, FREE);
 
 	//	DONE: 	Add the block to the free list
 	//	Hint: 	You could add the free block at the end of the list, but need to check if there
@@ -995,4 +964,17 @@ void printBlockInfo(void *block)
 	printValue(next, ADDRESS_TYPE);
 	puts("tag");
 	printValue(&tag, TAG_TYPE);
+}
+
+void updateNextFitPointer()
+{
+	if (nextFitPointer == NULL)
+	{
+		nextFitPointer = freeListHead;
+	}
+	else if (getTag(nextFitPointer) == 1)
+	{
+		puts("update nextFitPointer");
+		nextFitPointer = freeListHead;
+	}
 }

@@ -73,3 +73,4 @@ static bool adjacentBlocks(void *leftBlock, void *rightBlock);
 static void *findNextFreeBlock(void *start);
 static void *findPreviousFreeBlock(void *start);
 static void *mergeBlocks(void *leftBlock, void *rightBlock);
+static void updateNextFitPointer();
