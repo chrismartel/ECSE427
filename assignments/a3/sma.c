@@ -111,7 +111,7 @@ void *sma_malloc(int size)
 
 	// Updates SMA Info
 	totalAllocatedSize += size;
-
+	//printBlockInfo(pMemory);
 	return pMemory;
 }
 
@@ -139,6 +139,8 @@ void sma_free(void *ptr)
 		//	Adds the block to the free memory list
 		add_block_freeList(ptr);
 	}
+		printBlockInfo(ptr);
+
 }
 
 /*
@@ -487,6 +489,8 @@ void allocate_block(void *newBlock, int size, int excessSize, int fromFreeList)
 		}
 		else
 		{
+			setPrevious(newBlock,NULL);
+			setNext(newBlock,NULL);
 			//	Adds excess free block to the free list
 			add_block_freeList(excessFreeBlock);
 		}
@@ -568,6 +572,8 @@ void replace_block_freeList(void *oldBlock, void *newBlock)
 void add_block_freeList(void *block)
 {
 	int blockSize = getBlockSize(block);
+			setTag(block, FREE);
+
 
 	//	DONE: 	Add the block to the free list
 	//	Hint: 	You could add the free block at the end of the list, but need to check if there
@@ -583,7 +589,6 @@ void add_block_freeList(void *block)
 		setNext(block, NULL);
 		setPrevious(block, NULL);
 		freeListTail = block;
-		setTag(block, FREE);
 	}
 	// list does exist
 	else
