@@ -118,6 +118,7 @@ void *sma_malloc(int size)
 	// Updates SMA Info
 	totalAllocatedSize += size;
 
+	// printBlockInfo(freeListTail);
 	return pMemory;
 }
 
@@ -257,22 +258,26 @@ void *allocate_pBrk(int size)
 		//puts("PBRK HEAD NOT NULL\n");
 
 		void *lastFreeBlock = freeListTail;
+		// puts("last free block");
+		// printBlockInfo(lastFreeBlock);
+		// printValue(heapBreak,ADDRESS_TYPE);
 		int lastFreeBlockSize = getBlockSize(lastFreeBlock);
-
+		int breakIncrement;
 		// last block on the heap is a free block
 		if (isLastBlock(lastFreeBlock))
 		{
-			sbrk(size - lastFreeBlockSize + FREE_BLOCK_HEADER_SIZE + MAX_TOP_FREE);
+			breakIncrement = size + FREE_BLOCK_HEADER_SIZE + MAX_TOP_FREE - lastFreeBlockSize;
+			sbrk(breakIncrement);
 			heapBreak = sbrk(0);
-			// puts("PBRK SUCESS\n");
-
-			newBlock = heapBreak - lastFreeBlockSize;
+			newBlock = lastFreeBlock;
 			setTag(newBlock, ALLOCATED);
+			// printBlockInfo(newBlock);
 		}
 		// last block on the heap is not a free block
 		else
 		{
-			newBlock = sbrk(2 * FREE_BLOCK_HEADER_SIZE + MAX_TOP_FREE + size) + FREE_BLOCK_HEADER_SIZE;
+			breakIncrement = 2 * FREE_BLOCK_HEADER_SIZE + MAX_TOP_FREE + size;
+			newBlock = sbrk(breakIncrement) + FREE_BLOCK_HEADER_SIZE;
 			setTag(newBlock, ALLOCATED);
 
 			// puts("PBRK SUCESS\n");
@@ -629,7 +634,7 @@ void add_block_freeList(void *block)
 			if (adjacentBlocks(block, next))
 			{
 				// Merge right
-				puts("RIGHT MERGE");
+				// puts("RIGHT MERGE");
 
 				block = mergeBlocks(block, next);
 			}
@@ -840,6 +845,8 @@ bool isLastBlock(void *block)
 {
 	int blockSize = getBlockSize(block);
 	void *endOfBlock = block + blockSize;
+
+
 	if (endOfBlock == heapBreak)
 		return true;
 	else

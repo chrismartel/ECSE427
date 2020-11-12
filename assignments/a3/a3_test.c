@@ -64,6 +64,8 @@ int main(int argc, char *argv[])
 	else
 		puts("\t\t\t\t FAILED\n");
 
+
+
 	// Test 2: Program Break expansion Test
 	puts("Test 2: Program break expansion test...");
 
@@ -150,21 +152,21 @@ int main(int argc, char *argv[])
 	{
 		if (cp4 == c[19])
 		{
-			// sprintf(str, "C[19]: %p", c[19]);
-			// puts(str);
-			// sprintf(str, "CP4: %p", cp4);
-			// puts(str);
+			sprintf(str, "C[19]: %p", c[19]);
+			puts(str);
+			sprintf(str, "CP4: %p", cp4);
+			puts(str);
 
 			puts("\t\t\t\t PASSED\n");
 		}
 		else
 		{
-			puts("\t\t\t\t FAILED\n");
+			puts("\t\t\t\t FAILED1\n");
 		}
 	}
 	else
 	{
-		puts("\t\t\t\t FAILED\n");
+		puts("\t\t\t\t FAILED2\n");
 	}
 
 	// Test 5: Realloc test (with Next Fit)
