@@ -150,6 +150,7 @@ void *sma_malloc(int size)
  */
 void sma_free(void *ptr)
 {
+	totalAllocatedSize -= getBlockSize(ptr);
 
 	//	Checks if the ptr is NULL
 	if (ptr == NULL)
@@ -168,7 +169,6 @@ void sma_free(void *ptr)
 		// update the program break
 		updateBreak();
 	}
-	totalAllocatedSize -= getBlockSize(ptr);
 	totalFreeSize += getBlockSize(ptr);
 }
 
@@ -441,6 +441,35 @@ void *mergeBlocks(void *leftBlock, void *rightBlock)
 	setBlockSize(leftBlock, (leftBlockSize + FREE_BLOCK_HEADER_SIZE + rightBlockSize));
 
 	return leftBlock;
+}
+
+/*
+ *	Function Name: updateBreak
+ *	Input type:		void
+ * 	Output type:	void
+ * 	Description:	Updates the break of the program in function 
+ * 					of the last free block.
+ */
+void updateBreak()
+{
+	if (freeListTail == NULL)
+		return;
+	else
+	{
+		// check if last free block is last block on heap
+		if (isLastBlock(freeListTail))
+		{
+			int size = getBlockSize(freeListTail);
+			// too much free space
+			if (size > MAX_TOP_FREE)
+			{
+				setBlockSize(freeListTail, MAX_TOP_FREE);
+				// reduce program break
+				brk(freeListHead + MAX_TOP_FREE);
+				heapBreak = sbrk(0);
+			}
+		}
+	}
 }
 
 /*
@@ -860,8 +889,6 @@ void add_block_freeList(void *block)
 			}
 		}
 	}
-	//	Updates SMA info
-	//totalFreeSize += getBlockSize(block);
 }
 
 /*
@@ -941,35 +968,6 @@ int get_largest_freeBlock()
 	}
 
 	return largestBlockSize;
-}
-
-/*
- *	Function Name: updateBreak
- *	Input type:		void
- * 	Output type:	void
- * 	Description:	Updates the break of the program in function 
- * 					of the last free block.
- */
-void updateBreak()
-{
-	if (freeListTail == NULL)
-		return;
-	else
-	{
-		// check if last free block is last block on heap
-		if (isLastBlock(freeListTail))
-		{
-			int size = getBlockSize(freeListTail);
-			// too much free space
-			if (size > MAX_TOP_FREE)
-			{
-				setBlockSize(freeListTail, MAX_TOP_FREE);
-				// reduce program break
-				brk(freeListHead + MAX_TOP_FREE);
-				heapBreak = sbrk(0);
-			}
-		}
-	}
 }
 
 /*
