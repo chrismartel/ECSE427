@@ -92,7 +92,7 @@ void *nextFitPointer;
  */
 
 /*
- *	Funcation Name: sma_malloc
+ *	Function Name: sma_malloc
  *	Input type:		int
  * 	Output type:	void*
  * 	Description:	Allocates a memory block of input size from the heap, and returns a 
@@ -143,7 +143,7 @@ void *sma_malloc(int size)
 }
 
 /*
- *	Funcation Name: sma_free
+ *	Function Name: sma_free
  *	Input type:		void*
  * 	Output type:	void
  * 	Description:	Deallocates the memory block pointed by the input pointer
@@ -165,17 +165,15 @@ void sma_free(void *ptr)
 	{
 		//	Adds the block to the free memory list
 		add_block_freeList(ptr);
+		// update the program break
+		updateBreak();
 	}
 	totalAllocatedSize -= getBlockSize(ptr);
 	totalFreeSize += getBlockSize(ptr);
-	// puts("allocated");
-	// printValue(&totalAllocatedSize, SIZE_TYPE);
-	// puts("free");
-	// printValue(&totalFreeSize, SIZE_TYPE);
 }
 
 /*
- *	Funcation Name: sma_mallopt
+ *	Function Name: sma_mallopt
  *	Input type:		int
  * 	Output type:	void
  * 	Description:	Specifies the memory allocation policy
@@ -194,7 +192,7 @@ void sma_mallopt(int policy)
 }
 
 /*
- *	Funcation Name: sma_mallinfo
+ *	Function Name: sma_mallinfo
  *	Input type:		void
  * 	Output type:	void
  * 	Description:	Prints statistics about the memory allocation by SMA so far.
@@ -215,7 +213,7 @@ void sma_mallinfo()
 }
 
 /*
- *	Funcation Name: sma_realloc
+ *	Function Name: sma_realloc
  *	Input type:		void*, int
  * 	Output type:	void*
  * 	Description:	Reallocates memory pointed to by the input pointer by resizing the
@@ -267,7 +265,7 @@ void *sma_realloc(void *ptr, int size)
  */
 
 /*
- *	Funcation Name: isLastBlock
+ *	Function Name: isLastBlock
  *	Input type:		void*
  * 	Output type:	bool
  * 	Description:	checks if block is the last block on the heap
@@ -286,7 +284,7 @@ bool isLastBlock(void *block)
 }
 
 /*
- *	Funcation Name: isFirstBlock
+ *	Function Name: isFirstBlock
  *	Input type:		void*
  * 	Output type:	bool
  * 	Description:	checks if block is the first block on the heap
@@ -303,7 +301,7 @@ bool isFirstBlock(void *block)
 }
 
 /*
- *	Funcation Name: adjacentBlocks
+ *	Function Name: adjacentBlocks
  *	Input type:		void*,void*
  * 	Output type:	bool
  * 	Description:	checks if lefBlock and rightBlock are adjacent
@@ -326,7 +324,7 @@ bool adjacentBlocks(void *leftBlock, void *rightBlock)
 }
 
 /*
- *	Funcation Name: findNextFreeBlock
+ *	Function Name: findNextFreeBlock
  *	Input type:		void*
  * 	Output type:	void*
  * 	Description:	finds the next free block from start pointer
@@ -360,7 +358,7 @@ void *findNextFreeBlock(void *start)
 }
 
 /*
- *	Funcation Name: findPreviousFreeBlock
+ *	Function Name: findPreviousFreeBlock
  *	Input type:		void*
  * 	Output type:	void*
  * 	Description:	finds the previous free block from start pointer
@@ -396,7 +394,7 @@ void *findPreviousFreeBlock(void *start)
 	}
 }
 /*
- *	Funcation Name: mergeBlocks
+ *	Function Name: mergeBlocks
  *	Input type:		void*, void*
  * 	Output type:	void*
  * 	Description:	merges the leftblock and the rightblock and returns the merged block pointer
@@ -446,7 +444,7 @@ void *mergeBlocks(void *leftBlock, void *rightBlock)
 }
 
 /*
- *	Funcation Name: allocate_pBrk
+ *	Function Name: allocate_pBrk
  *	Input type:		int
  * 	Output type:	void*
  * 	Description:	Allocates memory by increasing the Program Break. Returns pointer to allocated memory block
@@ -509,7 +507,7 @@ void *allocate_pBrk(int size)
 }
 
 /*
- *	Funcation Name: allocate_freeList
+ *	Function Name: allocate_freeList
  *	Input type:		int
  * 	Output type:	void*
  * 	Description:	Allocates memory from the free memory list
@@ -536,7 +534,7 @@ void *allocate_freeList(int size)
 }
 
 /*
- *	Funcation Name: allocate_worst_fit
+ *	Function Name: allocate_worst_fit
  *	Input type:		int
  * 	Output type:	void*
  * 	Description:	Allocates memory using Worst Fit from the free memory list
@@ -585,7 +583,7 @@ void *allocate_worst_fit(int size)
 }
 
 /*
- *	Funcation Name: allocate_next_fit
+ *	Function Name: allocate_next_fit
  *	Input type:		int
  * 	Output type:	void*
  * 	Description:	Allocates memory using Next Fit from the free memory list
@@ -656,7 +654,7 @@ void *allocate_next_fit(int size)
 }
 
 /*
- *	Funcation Name: allocate_block
+ *	Function Name: allocate_block
  *	Input type:		void*, int, int, int
  * 	Output type:	void
  * 	Description:	Performs routine operations for allocating a memory block
@@ -719,7 +717,7 @@ void allocate_block(void *newBlock, int size, int excessSize, int fromFreeList)
 }
 
 /*
- *	Funcation Name: replace_block_freeList
+ *	Function Name: replace_block_freeList
  *	Input type:		void*, void*
  * 	Output type:	void
  * 	Description:	Replaces old block with the new block in the free list
@@ -761,7 +759,7 @@ void replace_block_freeList(void *oldBlock, void *newBlock)
 }
 
 /*
- *	Funcation Name: add_block_freeList
+ *	Function Name: add_block_freeList
  *	Input type:		void*
  * 	Output type:	void
  * 	Description:	Adds a memory block from the the free memory list
@@ -867,7 +865,7 @@ void add_block_freeList(void *block)
 }
 
 /*
- *	Funcation Name: remove_block_freeList
+ *	Function Name: remove_block_freeList
  *	Input type:		void*
  * 	Output type:	void
  * 	Description:	Removes a memory block from the the free memory list
@@ -918,7 +916,7 @@ void remove_block_freeList(void *block)
 }
 
 /*
- *	Funcation Name: get_largest_freeBlock
+ *	Function Name: get_largest_freeBlock
  *	Input type:		void
  * 	Output type:	int
  * 	Description:	Extracts the largest Block Size
@@ -946,13 +944,42 @@ int get_largest_freeBlock()
 }
 
 /*
+ *	Function Name: updateBreak
+ *	Input type:		void
+ * 	Output type:	void
+ * 	Description:	Updates the break of the program in function 
+ * 					of the last free block.
+ */
+void updateBreak()
+{
+	if (freeListTail == NULL)
+		return;
+	else
+	{
+		// check if last free block is last block on heap
+		if (isLastBlock(freeListTail))
+		{
+			int size = getBlockSize(freeListTail);
+			// too much free space
+			if (size > MAX_TOP_FREE)
+			{
+				setBlockSize(freeListTail, MAX_TOP_FREE);
+				// reduce program break
+				brk(freeListHead + MAX_TOP_FREE);
+				heapBreak = sbrk(0);
+			}
+		}
+	}
+}
+
+/*
  * =====================================================================================
  *	Getters Setters for Block Parameters
  * =====================================================================================
  */
 
 /*
- *	Funcation Name: getBlockSize
+ *	Function Name: getBlockSize
  *	Input type:		void*
  * 	Output type:	int
  * 	Description:	returns the blockSize of the block
@@ -967,7 +994,7 @@ int getBlockSize(void *block)
 }
 
 /*
- *	Funcation Name: setBlockSize
+ *	Function Name: setBlockSize
  *	Input type:		void*,int
  * 	Output type:	void
  * 	Description:	sets the blockSize of the block to size
@@ -981,7 +1008,7 @@ void setBlockSize(void *block, int size)
 }
 
 /*
- *	Funcation Name: getTag
+ *	Function Name: getTag
  *	Input type:		void*
  * 	Output type:	bool
  * 	Description:	returns the tag of the block
@@ -994,7 +1021,7 @@ bool getTag(void *block)
 }
 
 /*
- *	Funcation Name: setTag
+ *	Function Name: setTag
  *	Input type:		void*,bool
  * 	Output type:	void
  * 	Description:	sets the tag of the block to tag
@@ -1007,7 +1034,7 @@ void setTag(void *block, bool tag)
 }
 
 /*
- *	Funcation Name: getPrevious
+ *	Function Name: getPrevious
  *	Input type:		void*
  * 	Output type:	void*
  * 	Description:	returns the previous block pointer of the block
@@ -1018,7 +1045,7 @@ void *getPrevious(void *block)
 	return *ptr;
 }
 /*
- *	Funcation Name: setPrevious
+ *	Function Name: setPrevious
  *	Input type:		void*,void*
  * 	Output type:	void
  * 	Description:	sets the previous block pointer of the block to previous
@@ -1030,7 +1057,7 @@ void setPrevious(void *block, void *previous)
 }
 
 /*
- *	Funcation Name: getNext
+ *	Function Name: getNext
  *	Input type:		void*
  * 	Output type:	void*
  * 	Description:	returns the next block pointer of the block
@@ -1041,7 +1068,7 @@ void *getNext(void *block)
 	return *ptr;
 }
 /*
- *	Funcation Name: setNext
+ *	Function Name: setNext
  *	Input type:		void*,void*
  * 	Output type:	void
  * 	Description:	sets the next block pointer of the block to next
