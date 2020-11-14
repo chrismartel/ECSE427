@@ -83,7 +83,7 @@ void *heapStart;
 bool isFirstBreak = 1;
 
 // pointer used for the nextFit allocation algorithm
-void *nextFitPointer;
+void *lastAllocatedPointer;
 
 /*
  * =====================================================================================
@@ -134,11 +134,11 @@ void *sma_malloc(int size)
 	{
 		// Update SMA
 		totalAllocatedSize += size;
+		setTag(pMemory, ALLOCATED);
+
+		lastAllocatedPointer = pMemory;
+
 	}
-	// puts("allocated");
-	// printValue(&totalAllocatedSize, SIZE_TYPE);
-	// puts("free");
-	// printValue(&totalFreeSize, SIZE_TYPE);
 	return pMemory;
 }
 
@@ -169,6 +169,9 @@ void sma_free(void *ptr)
 		// update the program break
 		updateBreak();
 	}
+	setTag(ptr, FREE);
+
+
 	totalFreeSize += getBlockSize(ptr);
 }
 
@@ -180,6 +183,7 @@ void sma_free(void *ptr)
  */
 void sma_mallopt(int policy)
 {
+
 	// Assigns the appropriate Policy
 	if (policy == 1)
 	{
@@ -316,6 +320,10 @@ bool adjacentBlocks(void *leftBlock, void *rightBlock)
 	{
 		return false;
 	}
+	if (leftBlock == rightBlock)
+	{
+		return false;
+	}
 	int leftBlockSize = getBlockSize(leftBlock);
 	if ((leftBlock + leftBlockSize + FREE_BLOCK_HEADER_SIZE) == rightBlock)
 		return true;
@@ -333,27 +341,20 @@ void *findNextFreeBlock(void *start)
 {
 	if (start == NULL)
 		return NULL;
+
 	void *block = freeListHead;
-	bool blockFound = false;
+
 	while (true)
 	{
-		if (block >= start)
+		if ((block > start) && (!getTag(block)))
 		{
-			blockFound = true;
-			break;
+
+			return block;
 		}
 		if (block == freeListTail)
-			break;
+			return freeListHead;
 
 		block = getNext(block);
-	}
-	if (blockFound)
-	{
-		return block;
-	}
-	else
-	{
-		return NULL;
 	}
 }
 
@@ -372,7 +373,7 @@ void *findPreviousFreeBlock(void *start)
 	bool blockFound = false;
 	while (true)
 	{
-		if (block <= start)
+		if (block <= start && !getTag(block))
 		{
 			blockFound = true;
 			break;
@@ -407,6 +408,10 @@ void *mergeBlocks(void *leftBlock, void *rightBlock)
 		return rightBlock;
 	}
 	if (rightBlock == NULL)
+	{
+		return leftBlock;
+	}
+	if (leftBlock == rightBlock)
 	{
 		return leftBlock;
 	}
@@ -463,9 +468,11 @@ void updateBreak()
 			// too much free space
 			if (size > MAX_TOP_FREE)
 			{
+
 				setBlockSize(freeListTail, MAX_TOP_FREE);
+
 				// reduce program break
-				brk(freeListHead + MAX_TOP_FREE);
+				brk(freeListTail + MAX_TOP_FREE);
 				heapBreak = sbrk(0);
 			}
 		}
@@ -520,9 +527,6 @@ void *allocate_pBrk(int size)
 			newBlock = sbrk(breakIncrement) + FREE_BLOCK_HEADER_SIZE;
 		}
 	}
-
-	// set block status to allocated
-	setTag(newBlock, ALLOCATED);
 
 	excessSize = FREE_BLOCK_HEADER_SIZE + MAX_TOP_FREE;
 
@@ -579,6 +583,9 @@ void *allocate_worst_fit(int size)
 	// Largest free block size
 	int largestBlockSize = get_largest_freeBlock();
 
+	if (largestBlockSize < size)
+		return (void *)-2;
+
 	while (true)
 	{
 		int blockSize = getBlockSize(worstBlock);
@@ -624,7 +631,7 @@ void *allocate_next_fit(int size)
 	int blockFound = 0;
 
 	// check if next fit pointer is NULL or was allocated
-	if (nextFitPointer == NULL || getTag(nextFitPointer) == 1)
+	if (lastAllocatedPointer == NULL)
 	{
 		// start from the head
 		nextBlock = freeListHead;
@@ -632,7 +639,7 @@ void *allocate_next_fit(int size)
 	else
 	{
 		// start from next fit pointer
-		nextBlock = nextFitPointer;
+		nextBlock = findNextFreeBlock(lastAllocatedPointer);
 	}
 
 	// keep track of starting point
@@ -646,11 +653,6 @@ void *allocate_next_fit(int size)
 		{
 			blockFound = 1;
 			excessSize = blockSize - size;
-
-			// update next fit pointer
-			nextFitPointer = getNext(nextBlock);
-			if (nextFitPointer == NULL)
-				nextFitPointer = freeListHead;
 			break;
 		}
 		// Only one block --> end of loop
@@ -658,10 +660,13 @@ void *allocate_next_fit(int size)
 			break;
 
 		// Updates pointer
-		else if (nextBlock == freeListTail)
-			nextBlock = freeListHead;
-		else
+		else if (nextBlock == freeListTail){
+						nextBlock = freeListHead;
+
+		}
+		else{
 			nextBlock = getNext(nextBlock);
+		}
 
 		// Come back to start pointer --> end of loop
 		if (nextBlock == start)
@@ -693,7 +698,9 @@ void allocate_block(void *newBlock, int size, int excessSize, int fromFreeList)
 {
 	void *excessFreeBlock;
 	int addFreeBlock;
-	int previousSize = getBlockSize(newBlock);
+
+	// set block status to allocated
+	//setTag(newBlock, ALLOCATED);
 
 	// 	Checks if excess free size is big enough to be added to the free memory list
 	//	Helps to reduce external fragmentation
@@ -716,15 +723,16 @@ void allocate_block(void *newBlock, int size, int excessSize, int fromFreeList)
 		else
 		{
 			// Updates new allocated block parameters
+
+			void *prev = getPrevious(newBlock);
+			if (prev != NULL)
+			{
+				setNext(prev, excessFreeBlock);
+				setPrevious(excessFreeBlock, prev);
+			}
+			freeListTail = excessFreeBlock;
 			setPrevious(newBlock, NULL);
 			setNext(newBlock, NULL);
-			void *prev = getPrevious(newBlock);
-			void *next = getNext(newBlock);
-			setTag(newBlock, ALLOCATED);
-			if (prev != NULL)
-				setNext(prev, next);
-			if (next != NULL)
-				setPrevious(next, prev);
 
 			//	Adds excess free block to the free list
 			add_block_freeList(excessFreeBlock);
@@ -781,7 +789,7 @@ void replace_block_freeList(void *oldBlock, void *newBlock)
 
 	setPrevious(oldBlock, NULL);
 	setNext(oldBlock, NULL);
-	setTag(oldBlock, ALLOCATED);
+	//setTag(oldBlock, ALLOCATED);
 	setTag(newBlock, FREE);
 
 	totalFreeSize -= (getBlockSize(oldBlock) + FREE_BLOCK_HEADER_SIZE);
@@ -910,7 +918,7 @@ void remove_block_freeList(void *block)
 		// no more free list
 		freeListHead = NULL;
 		freeListTail = NULL;
-		nextFitPointer = NULL;
+		lastAllocatedPointer = NULL;
 	}
 	// block to remove is head block
 	else if (freeListHead == block)
@@ -936,7 +944,7 @@ void remove_block_freeList(void *block)
 	// set parameters of removed block
 	setPrevious(block, NULL);
 	setNext(block, NULL);
-	setTag(block, ALLOCATED);
+	//setTag(block, ALLOCATED);
 
 	//	Updates SMA info
 	totalFreeSize -= getBlockSize(block);
@@ -984,6 +992,7 @@ int get_largest_freeBlock()
  */
 int getBlockSize(void *block)
 {
+
 	void *ptr = block;
 	ptr = ptr - 2 * BLOCK_POINTER_SIZE - INT_SIZE;
 
@@ -1124,4 +1133,34 @@ void printBlockInfo(void *block)
 	printValue(next, ADDRESS_TYPE);
 	puts("tag");
 	printValue(&tag, TAG_TYPE);
+}
+
+
+void printFreeList()
+{
+
+	void *ptr = freeListHead;
+	void *end = freeListTail;
+	char str[60];
+	if (freeListHead == NULL || freeListTail == NULL)
+		return;
+	else
+	{
+		puts("FREE BLOCK LIST:");
+		while (true)
+		{
+
+			sprintf(str, "Block size: %d   Block address: %p", getBlockSize(ptr), ptr);
+			puts(str);
+			if (ptr == end)
+				break;
+			ptr = getNext(ptr);
+		}
+		sprintf(str, "Head size: %d   Head address: %p", getBlockSize(freeListHead), freeListHead);
+		puts(str);
+		sprintf(str, "Tail size: %d   Tail address: %p", getBlockSize(freeListTail), freeListTail);
+		puts(str);
+		sprintf(str, "Is tail last block on heap?: %d", isLastBlock(freeListTail));
+		puts(str);
+	}
 }

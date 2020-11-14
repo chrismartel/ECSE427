@@ -71,8 +71,6 @@ int main(int argc, char *argv[])
 	{
 		limitbefore = sbrk(0);
 		ptr = sma_malloc(1024 * 32 * i);
-		// sprintf(str, "Allocating 32kB: %p", ptr);
-		// puts(str);
 		limitafter = sbrk(0);
 
 		if (limitafter > limitbefore)
@@ -92,11 +90,7 @@ int main(int argc, char *argv[])
 
 	// Allocating 512 kbytes of memory..
 	for (i = 0; i < 32; i++)
-	{
 		c[i] = (char *)sma_malloc(16 * 1024);
-		// sprintf(str, "Allocating c[i]: %p", c[i]);
-		// puts(str);
-	}
 
 	// Now deallocating some of the slots ..to free
 	// One chunk of 5x16 kbytes
@@ -107,7 +101,6 @@ int main(int argc, char *argv[])
 	sma_free(c[27]);
 
 	// One chunk of 3x16 kbytes
-
 	sma_free(c[25]);
 	sma_free(c[24]);
 	sma_free(c[23]);
@@ -126,8 +119,7 @@ int main(int argc, char *argv[])
 	sma_free(c[4]);
 
 	char *cp2 = (char *)sma_malloc(16 * 1024 * 2);
-	// sprintf(str, "Allocating cp2: %p", cp2);
-	// puts(str);
+
 	// Testing if the correct hole has been allocated
 	if (cp2 != NULL)
 	{
@@ -150,13 +142,7 @@ int main(int argc, char *argv[])
 	sma_mallopt(NEXT_FIT);
 
 	char *cp3 = (char *)sma_malloc(16 * 1024 * 3);
-	// sprintf(str, "Allocating cp3: %p", cp3);
-	// puts(str);
-
 	char *cp4 = (char *)sma_malloc(16 * 1024 * 2);
-
-	// sprintf(str, "Allocating cp4: %p", cp4);
-	// puts(str);
 
 	// Testing if the correct holes have been allocated
 	if (cp3 == c[8] && cp3 != NULL)
@@ -172,41 +158,35 @@ int main(int argc, char *argv[])
 		}
 		else
 		{
-			puts("\t\t\t\t FAILED1\n");
+			puts("\t\t\t\t FAILED\n");
 		}
 	}
 	else
 	{
-		puts("\t\t\t\t FAILED2\n");
+		puts("\t\t\t\t FAILED\n");
 	}
 
 	// Test 5: Realloc test (with Next Fit)
 	puts("Test 5: Check for Reallocation with Next Fit...");
-	*cp3 = "ECSE_427";
-	*cp4 = "COMP_310";
+	*cp3 = 'ECSE_427';
+	*cp4 = 'COMP_310';
 	cp3 = (char *)sma_realloc(cp3, 16 * 1024 * 5);
-	sprintf(str, "Allocating cp3: %p", cp3);
-	puts(str);
 	cp4 = (char *)sma_realloc(cp4, 16 * 1024 * 3);
-	sprintf(str, "Allocating cp4: %p", cp4);
-	puts(str);
-
 
 	if (cp3 == c[27] && cp3 != NULL && cp4 == c[8] && cp4 != NULL)
 	{
 		//	Tests the Data stored by the memory blocks
-		if (*cp3 == "ECSE_427" && *cp4 == "COMP_310")
-		{
+		if(*cp3 == 'ECSE_427' && *cp4 == 'COMP_310'){
 			puts("\t\t\t\t PASSED\n");
 		}
 		else
 		{
-			puts("\t\t\t\t FAILED1\n");
-		}
+			puts("\t\t\t\t FAILED\n");
+		}		
 	}
 	else
 	{
-		puts("\t\t\t\t FAILED2\n");
+		puts("\t\t\t\t FAILED\n");
 	}
 
 	//	Test 6: Print Stats

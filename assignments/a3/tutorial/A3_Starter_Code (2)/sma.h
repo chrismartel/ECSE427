@@ -18,11 +18,11 @@
  */
 
 /* Includes */
+//  TODO: Add any libraries you might use here.
 #include <string.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
 
 //  Policies definition
 #define WORST_FIT	1
@@ -46,30 +46,6 @@ static void allocate_block(void* newBlock, int size, int excessSize, int fromFre
 static void replace_block_freeList(void* oldBlock, void* newBlock);
 static void add_block_freeList(void* block);
 static void remove_block_freeList(void* block);
+static int get_blockSize(void *ptr);
 static int get_largest_freeBlock();
-
-//  Getters Setters
-static void *getNext(void *block);
-static void setNext(void *block, void *next);
-static void *getPrevious(void *block);
-static void setPrevious(void *block, void *previous);
-static int getBlockSize(void *block);
-static void setBlockSize(void *block, int size);
-static bool getTag(void *block);
-static void setTag(void *block, bool tag);
-
-// Helper Functions
-static bool isLastBlock(void *block);
-static bool isFirstBlock(void *block);
-static bool adjacentBlocks(void *leftBlock, void *rightBlock);
-static void *findNextFreeBlock(void *start);
-static void *findPreviousFreeBlock(void *start);
-static void *mergeBlocks(void *leftBlock, void *rightBlock);
-static void updateBreak();
-static void refreshNextFitPointer();
-
-// Debugging tools
-static void printValue(void *toPrint, int dataType);
-static void printBlockInfo(void *block);
-static void printFreeList();
-
+//  TODO: Declare any private functions that you intend to add in your code.
