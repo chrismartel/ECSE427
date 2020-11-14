@@ -134,10 +134,13 @@ void *sma_malloc(int size)
 	{
 		// Update SMA
 		totalAllocatedSize += size;
+		// set tag of newly allocated block
 		setTag(pMemory, ALLOCATED);
 
+		// update last allocated pointer
 		lastAllocatedPointer = pMemory;
 	}
+	updateTotalFreeSize();
 	return pMemory;
 }
 
@@ -168,9 +171,10 @@ void sma_free(void *ptr)
 		// update the program break
 		updateBreak();
 	}
+	// set tag of newly free block
+	updateTotalFreeSize();
 	setTag(ptr, FREE);
 
-	totalFreeSize += getBlockSize(ptr);
 }
 
 /*
@@ -253,6 +257,8 @@ void *sma_realloc(void *ptr, int size)
 
 			// copy data from oldBlock to newBlock
 			memcpy(newBlock, oldBlock, oldSize);
+			printFreeList();
+			updateTotalFreeSize();
 			return newBlock;
 		}
 	}
@@ -482,6 +488,27 @@ void updateBreak()
 }
 
 /*
+ *	Function Name: updateTotalFreeSize
+ *	Input type:		void
+ * 	Output type:	void
+ * 	Description:	Updates the total free size of the sma library
+ */
+void updateTotalFreeSize(){
+	void *ptr = freeListHead;
+	if (freeListHead == NULL)
+		return;
+	int totalSize = 0;
+	while(true){
+		int size = getBlockSize(ptr);
+		totalSize +=size;
+		if(ptr == freeListTail)
+			break;
+		ptr = getNext(ptr);
+	}
+	totalFreeSize = totalSize;
+}
+
+/*
  *	Function Name: allocate_pBrk
  *	Input type:		int
  * 	Output type:	void*
@@ -532,8 +559,6 @@ void *allocate_pBrk(int size)
 
 	excessSize = FREE_BLOCK_HEADER_SIZE + MAX_TOP_FREE;
 
-	// Update Free Space Info
-	totalFreeSize += breakIncrement;
 
 	//	Allocates the Memory Block
 	allocate_block(newBlock, size, excessSize, 0);
@@ -624,7 +649,7 @@ void *allocate_worst_fit(int size)
  *	Function Name: allocate_next_fit
  *	Input type:		int
  * 	Output type:	void*
- * 	Description:	Allocates memory using Next Fit from the free memory list
+ * 	Description:	Allocates memory using Next Fit Strategy
  */
 void *allocate_next_fit(int size)
 {
@@ -632,7 +657,7 @@ void *allocate_next_fit(int size)
 	int excessSize;
 	int blockFound = 0;
 
-	// check if next fit pointer is NULL or was allocated
+	// check if last allocated pointer is set
 	if (lastAllocatedPointer == NULL)
 	{
 		// start from the head
@@ -640,7 +665,7 @@ void *allocate_next_fit(int size)
 	}
 	else
 	{
-		// start from next fit pointer
+		// start from next free block pointer
 		nextBlock = findNextFreeBlock(lastAllocatedPointer);
 	}
 
@@ -657,21 +682,22 @@ void *allocate_next_fit(int size)
 			excessSize = blockSize - size;
 			break;
 		}
-		// Only one block --> end of loop
+		// If only one block --> end of loop
 		if (nextBlock == freeListHead && nextBlock == freeListTail)
 			break;
 
-		// Updates pointer
+		// If at the tail of list --> jump to head
 		else if (nextBlock == freeListTail)
 		{
 			nextBlock = freeListHead;
 		}
+		// jump to next free block in the list
 		else
 		{
 			nextBlock = getNext(nextBlock);
 		}
 
-		// Come back to start pointer --> end of loop
+		// Has come back to start --> end of loop
 		if (nextBlock == start)
 			break;
 	}
@@ -701,9 +727,6 @@ void allocate_block(void *newBlock, int size, int excessSize, int fromFreeList)
 {
 	void *excessFreeBlock;
 	int addFreeBlock;
-
-	// set block status to allocated
-	//setTag(newBlock, ALLOCATED);
 
 	// 	Checks if excess free size is big enough to be added to the free memory list
 	//	Helps to reduce external fragmentation
@@ -794,8 +817,6 @@ void replace_block_freeList(void *oldBlock, void *newBlock)
 	setNext(oldBlock, NULL);
 	//setTag(oldBlock, ALLOCATED);
 	setTag(newBlock, FREE);
-
-	totalFreeSize -= (getBlockSize(oldBlock) + FREE_BLOCK_HEADER_SIZE);
 }
 
 /*
@@ -947,10 +968,6 @@ void remove_block_freeList(void *block)
 	// set parameters of removed block
 	setPrevious(block, NULL);
 	setNext(block, NULL);
-	//setTag(block, ALLOCATED);
-
-	//	Updates SMA info
-	totalFreeSize -= getBlockSize(block);
 }
 
 /*

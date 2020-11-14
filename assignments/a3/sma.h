@@ -66,7 +66,7 @@ static void *findNextFreeBlock(void *start);
 static void *findPreviousFreeBlock(void *start);
 static void *mergeBlocks(void *leftBlock, void *rightBlock);
 static void updateBreak();
-static void refreshNextFitPointer();
+static void updateTotalFreeSize();
 
 // Debugging tools
 static void printValue(void *toPrint, int dataType);
