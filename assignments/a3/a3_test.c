@@ -150,8 +150,8 @@ int main(int argc, char *argv[])
 	sma_mallopt(NEXT_FIT);
 
 	char *cp3 = (char *)sma_malloc(16 * 1024 * 3);
-	// sprintf(str, "Allocating cp3: %p", cp3);
-	// puts(str);
+	sprintf(str, "Allocating cp3: %p", cp3);
+	puts(str);
 
 	char *cp4 = (char *)sma_malloc(16 * 1024 * 2);
 
@@ -172,41 +172,50 @@ int main(int argc, char *argv[])
 		}
 		else
 		{
-			puts("\t\t\t\t FAILED1\n");
+			puts("\t\t\t\t FAILED2\n");
 		}
 	}
 	else
 	{
-		puts("\t\t\t\t FAILED2\n");
+		puts("\t\t\t\t FAILED1\n");
 	}
 
 	// Test 5: Realloc test (with Next Fit)
 	puts("Test 5: Check for Reallocation with Next Fit...");
-	*cp3 = "ECSE_427";
-	*cp4 = "COMP_310";
-	cp3 = (char *)sma_realloc(cp3, 16 * 1024 * 5);
+
+
+
+
+	char* ecse427 = "ECSE_427";
+	char *comp310 = "COMP_310";
+
+	memcpy(cp3,ecse427,sizeof(ecse427));
+	memcpy(cp4,comp310,sizeof(comp310));
+
 	sprintf(str, "Allocating cp3: %p", cp3);
 	puts(str);
+
+	cp3 = (char *)sma_realloc(cp3, 16 * 1024 * 5);
+
 	cp4 = (char *)sma_realloc(cp4, 16 * 1024 * 3);
-	sprintf(str, "Allocating cp4: %p", cp4);
-	puts(str);
+
 
 
 	if (cp3 == c[27] && cp3 != NULL && cp4 == c[8] && cp4 != NULL)
 	{
 		//	Tests the Data stored by the memory blocks
-		if (*cp3 == "ECSE_427" && *cp4 == "COMP_310")
+		if (!strcmp(cp3,ecse427) && !strcmp(cp4,comp310))
 		{
 			puts("\t\t\t\t PASSED\n");
 		}
 		else
 		{
-			puts("\t\t\t\t FAILED1\n");
+			puts("\t\t\t\t FAILED2\n");
 		}
 	}
 	else
 	{
-		puts("\t\t\t\t FAILED2\n");
+		puts("\t\t\t\t FAILED1\n");
 	}
 
 	//	Test 6: Print Stats

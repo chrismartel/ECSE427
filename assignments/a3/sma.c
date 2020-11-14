@@ -137,7 +137,6 @@ void *sma_malloc(int size)
 		setTag(pMemory, ALLOCATED);
 
 		lastAllocatedPointer = pMemory;
-
 	}
 	return pMemory;
 }
@@ -170,7 +169,6 @@ void sma_free(void *ptr)
 		updateBreak();
 	}
 	setTag(ptr, FREE);
-
 
 	totalFreeSize += getBlockSize(ptr);
 }
@@ -231,10 +229,13 @@ void *sma_realloc(void *ptr, int size)
 	// block is allocated
 	if (oldTag)
 	{
+
 		int oldSize = getBlockSize(ptr);
 		// new size is smaller
 		if (size <= oldSize)
 		{
+			puts("REALLOC");
+
 			int excessSize = oldSize - size;
 			allocate_block(ptr, size, excessSize, 0);
 			totalAllocatedSize -= (oldSize - size);
@@ -243,6 +244,7 @@ void *sma_realloc(void *ptr, int size)
 		// new size is larger
 		else
 		{
+
 			void *oldBlock = ptr;
 
 			// free the memory block
@@ -660,11 +662,12 @@ void *allocate_next_fit(int size)
 			break;
 
 		// Updates pointer
-		else if (nextBlock == freeListTail){
-						nextBlock = freeListHead;
-
+		else if (nextBlock == freeListTail)
+		{
+			nextBlock = freeListHead;
 		}
-		else{
+		else
+		{
 			nextBlock = getNext(nextBlock);
 		}
 
@@ -1134,7 +1137,6 @@ void printBlockInfo(void *block)
 	puts("tag");
 	printValue(&tag, TAG_TYPE);
 }
-
 
 void printFreeList()
 {
