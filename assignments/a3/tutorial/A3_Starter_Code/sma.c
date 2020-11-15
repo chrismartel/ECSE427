@@ -125,7 +125,6 @@ void sma_free(void *ptr)
  */
 void sma_mallopt(int policy)
 {
-	
 	// Assigns the appropriate Policy
 	if (policy == 1)
 	{

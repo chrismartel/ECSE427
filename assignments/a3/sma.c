@@ -257,7 +257,6 @@ void *sma_realloc(void *ptr, int size)
 
 			// copy data from oldBlock to newBlock
 			memcpy(newBlock, oldBlock, oldSize);
-			printFreeList();
 			updateTotalFreeSize();
 			return newBlock;
 		}
